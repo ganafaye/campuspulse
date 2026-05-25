@@ -1,4 +1,3 @@
-```markdown
 # 📱 CampusPulse (UADB)
 
 **CampusPulse** est une application mobile moderne d'emploi du temps, spécialement conçue pour les étudiants de l'**Université Alioune Diop de Bambey (UADB)**. Elle répond à la problématique des changements d'horaires fréquents et offre une expérience fluide, rapide et accessible même sans connexion Internet.
