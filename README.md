@@ -71,7 +71,11 @@ flutter run
 * **27/05/2026 [Gana]** - Écran des Alertes Médicales (AlertsScreen) : Conception du centre de notifications pour les alertes sanitaires et urgences de l'université.
 
 * **27/05/2026 [Gana]** - Écran de Profil Éudiant (ProfileScreen) : Intégration de l'interface affichant les informations personnelles et le statut médical de l'étudiant connecté.
- 
+* **27/05/2026 [Gana]** - Ajout de l'écran de sélection de profil (simulateur d'étudiants UADB).
+**27/05/2026 [Gana]** - Filtrage dynamique de l'emploi du temps selon l'UID de l'utilisateur connecté.
+**27/05/2026 [Gana]** - Refactoring de l'écran d'alertes pour accepter des données de notifications dynamiques.
+**27/05/2026 [Gana]** - Configuration initiale et structure du NotificationService (flutter_local_notifications).
+
 *(👉 Prochaine modification à ajouter ici par un membre du groupe)*
 
 ```
