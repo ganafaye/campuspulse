@@ -1,18 +1,23 @@
 // lib/presentation/screens/student_home_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- AJOUT DE L'IMPORT RIVERPOD
+import '../providers/auth_provider.dart'; // <-- AJOUT DE L'IMPORT DE TON PROVIDER
+import '../providers/course_reminder_provider.dart'; // <-- Import du provider de rappel
 import 'schedule_screen.dart';
 import 'alerts_screen.dart';
 import 'profile_screen.dart';
 
-class StudentHomeScreen extends StatefulWidget {
+// Changement de StatefulWidget à ConsumerStatefulWidget
+class StudentHomeScreen extends ConsumerStatefulWidget {
   const StudentHomeScreen({super.key});
 
   @override
-  State<StudentHomeScreen> createState() => _StudentHomeScreenState();
+  ConsumerState<StudentHomeScreen> createState() => _StudentHomeScreenState();
 }
 
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
+// Changement de State à ConsumerState
+class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   int _currentIndex = 0;
 
   static const Color primaryColor = Color(0xFF00113A);
@@ -49,33 +54,36 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Initialiser le contexte pour les notifications
+    Future.microtask(() {
+      ref.read(courseReminderProvider.notifier).setAppContext(context);
+
+      // Récupérer le user uid et lancer le système de rappel
+      final authState = ref.read(authProvider);
+      if (authState is AuthAuthenticated) {
+        ref
+            .read(courseReminderProvider.notifier)
+            .startReminderCheck(authState.user.uid);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    ref.read(courseReminderProvider.notifier).stopReminderCheck();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Liste des écrans gérés par l'IndexedStack
     final List<Widget> _interfaces = [
       _buildHomeContent(), // Index 0 : Accueil
       const ScheduleScreen(), // Index 1 : Emploi du temps
-      const AlertsScreen(),
-      const ProfileScreen(), // Index 3 : TON ÉCRAN PROFIL ENTIÈREMENT INTÉGRÉ
-      const Center(
-        child: Text(
-          'Alertes & Notifications',
-          style: TextStyle(
-            fontFamily: 'Public Sans',
-            fontSize: 18,
-            color: primaryColor,
-          ),
-        ),
-      ), // Index 2
-      const Center(
-        child: Text(
-          'Mon Profil',
-          style: TextStyle(
-            fontFamily: 'Public Sans',
-            fontSize: 18,
-            color: primaryColor,
-          ),
-        ),
-      ), // Index 3
+      const AlertsScreen(), // Index 2
+      const ProfileScreen(), // Index 3 : Écran Profil
     ];
 
     return Scaffold(
@@ -114,7 +122,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      // CORRECTION: Remplacement de l'accès direct par un IndexedStack pour figer l'état des écrans
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
@@ -130,8 +137,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor:
-            secondaryColor, // Rendu visuel plus harmonieux avec la charte
+        selectedItemColor: secondaryColor,
         unselectedItemColor: onSurfaceVariant,
         selectedLabelStyle: const TextStyle(
           fontFamily: 'Public Sans',
@@ -155,14 +161,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildHomeContent() {
+    // 1. Écouter l'état de l'authentification
+    final authState = ref.watch(authProvider);
+
+    // 2. Récupérer le nom de l'utilisateur ou mettre une valeur par défaut si non connecté
+    String studentName = "Étudiant";
+    if (authState is AuthAuthenticated) {
+      // Si ton modèle a une propriété 'displayName' ou 'name', remplace '.name' par le bon champ
+      studentName = authState.user.name;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Bonjour, Alioune',
-            style: TextStyle(
+          // AFFICHAGE DYNAMIQUE DU NOM ICI :
+          Text(
+            'Bonjour, $studentName',
+            style: const TextStyle(
               fontFamily: 'Public Sans',
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -179,7 +196,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Widget: Prochain Cours (Bouton "Voir les détails" configuré pour rediriger vers l'emploi du temps)
+          // Widget: Prochain Cours
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),

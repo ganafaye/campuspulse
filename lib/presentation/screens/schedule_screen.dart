@@ -1,15 +1,18 @@
 // lib/presentation/screens/schedule_screen.dart
 
+import 'package:campuspulse/data/models/mock_data.dart';
+import 'package:campuspulse/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ScheduleScreen extends StatefulWidget {
+class ScheduleScreen extends ConsumerStatefulWidget {
   const ScheduleScreen({super.key});
 
   @override
-  State<ScheduleScreen> createState() => _ScheduleScreenState();
+  ConsumerState<ScheduleScreen> createState() => _ScheduleScreenState();
 }
 
-class _ScheduleScreenState extends State<ScheduleScreen> {
+class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   // Gestion du jour actif (par défaut Lundi)
   String _selectedDay = 'Lundi';
 
@@ -28,7 +31,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   static const Color onPrimaryContainer = Color(0xFF758DD5);
   static const Color secondaryColor = Color(0xFF115CB9);
   static const Color secondaryContainer = Color(0xFF659DFE);
-  static const Color onSecondaryContainer = Color(0xFF003370);
   static const Color backgroundColor = Color(0xFFF8F9FB);
   static const Color outlineVariant = Color(0xFFC5C6D2);
   static const Color onSurfaceVariant = Color(0xFF444650);
@@ -38,6 +40,29 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final bool isAuthenticated = authState is AuthAuthenticated;
+    final List<CourseModel> userSchedule = isAuthenticated
+        ? mockSchedule
+            .where((course) => course.studentUid == authState.user.uid)
+            .toList()
+        : <CourseModel>[];
+    final List<CourseModel> coursesForDay = userSchedule
+        .where((course) => course.day == _selectedDay)
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    final String greeting = isAuthenticated ? authState.user.name : 'Étudiant';
+    final String userInfo = isAuthenticated
+        ? '${authState.user.niveau} • ${authState.user.ufr}'
+        : 'Connectez-vous pour voir votre emploi du temps';
+
+    final int totalCourses = coursesForDay.length;
+    final int totalHours = coursesForDay.fold(
+      0,
+      (sum, course) => sum + _courseDurationHours(course),
+    );
+
     return Scaffold(
       backgroundColor: backgroundColor,
       // 1. Top AppBar
@@ -177,179 +202,44 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // On n'affiche le cours "En cours" que si l'on est sur le jour courant (Simulé ici sur le Lundi)
-                          if (_selectedDay == 'Lundi') ...[
-                            Row(
-                              children: [
-                                Icon(Icons.access_time_filled,
-                                    color: secondaryColor, size: 24),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'En cours',
-                                  style: TextStyle(
-                                      fontFamily: 'Public Sans',
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor),
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: secondaryContainer,
+                                child: const Icon(Icons.schedule,
+                                    color: Colors.white),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Emploi du temps de $greeting',
+                                style: const TextStyle(
+                                  fontFamily: 'Public Sans',
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            // Carte : Cours En Cours
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: outlineVariant),
-                                boxShadow: const [
-                                  BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2))
-                                ],
                               ),
-                              child: Stack(
-                                children: [
-                                  Positioned(
-                                    left: 0,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: 4,
-                                    child: Container(color: secondaryColor),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4),
-                                                    decoration: BoxDecoration(
-                                                      color: secondaryContainer
-                                                          .withOpacity(0.3),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                    ),
-                                                    child: const Text(
-                                                      '08:00 - 10:00',
-                                                      style: TextStyle(
-                                                          fontFamily:
-                                                              'Public Sans',
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color:
-                                                              onSecondaryContainer),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  const Text(
-                                                    '• En direct',
-                                                    style: TextStyle(
-                                                        fontFamily:
-                                                            'Public Sans',
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: secondaryColor),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 12),
-                                              const Text(
-                                                'Développement Mobile',
-                                                style: TextStyle(
-                                                    fontFamily: 'Public Sans',
-                                                    fontSize: 20,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: primaryColor),
-                                              ),
-                                              const SizedBox(height: 16),
-                                              const Row(
-                                                children: [
-                                                  Icon(Icons.person,
-                                                      size: 18,
-                                                      color: onSurfaceVariant),
-                                                  SizedBox(width: 6),
-                                                  Text('M. Gaye',
-                                                      style: TextStyle(
-                                                          fontFamily:
-                                                              'Public Sans',
-                                                          fontSize: 14,
-                                                          color:
-                                                              onSurfaceVariant)),
-                                                  SizedBox(width: 20),
-                                                  Icon(Icons.room,
-                                                      size: 18,
-                                                      color: onSurfaceVariant),
-                                                  SizedBox(width: 6),
-                                                  Text('Salle B1',
-                                                      style: TextStyle(
-                                                          fontFamily:
-                                                              'Public Sans',
-                                                          fontSize: 14,
-                                                          color:
-                                                              onSurfaceVariant)),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: Image.network(
-                                            'https://lh3.googleusercontent.com/aida-public/AB6AXuCfUrvXtfbLlX72s4WFThc3omDw3i8mgwjGYiQszn-BgacDdqT_O1fCaiR_Fq0KJhJ8B0fjhIIOKfoVlnOSWHu_p8BfYfSPA_ZvB1RZMvIkBMKhE8bGhxZGVj0wGcrK9A9iOKptN8IO2czzFIqfOoOmwY_UHcH7j82I_qJQ9QGmXdndqxzjadYbIQnxfv2FK3tPnPvSEXgrnMO3NQrDbtDiFgBQgooAqo1fb77egcGMz-Po-lZIYmJmBrysHwzmjokBjvWAOcVHXss',
-                                            width: 72,
-                                            height: 72,
-                                            fit: BoxFit.cover,
-                                            color: Colors.grey,
-                                            colorBlendMode:
-                                                BlendMode.saturation,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                    Container(
-                                              width: 72,
-                                              height: 72,
-                                              color: Colors.grey[300],
-                                              child: const Icon(Icons.person,
-                                                  color: Colors.grey),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            userInfo,
+                            style: const TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 14,
+                              color: onSurfaceVariant,
                             ),
-                            const SizedBox(height: 28),
-                          ],
+                          ),
+                          const SizedBox(height: 20),
 
-                          // SECTION : À venir (Adaptable ou vide selon le jour choisi)
                           Row(
                             children: [
                               Icon(Icons.upcoming,
                                   color: secondaryColor, size: 24),
                               const SizedBox(width: 8),
                               Text(
-                                _selectedDay == 'Lundi'
-                                    ? 'À venir'
-                                    : 'Cours du $_selectedDay',
+                                'Cours du $_selectedDay',
                                 style: const TextStyle(
                                     fontFamily: 'Public Sans',
                                     fontSize: 24,
@@ -360,34 +250,57 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Exemple de gestion des données par jour
-                          if (_selectedDay == 'Lundi') ...[
-                            _buildUpcomingCourseCard(
-                                time: '10:15 - 12:15',
-                                title: 'Intelligence Artificielle',
-                                professor: 'Mme Diop',
-                                room: 'Lab 3'),
-                            const SizedBox(height: 16),
-                            _buildAfternoonSeparator(),
-                            const SizedBox(height: 16),
-                            _buildUpcomingCourseCard(
-                                time: '14:00 - 16:00',
-                                title: 'Génie Logiciel',
-                                professor: 'M. Traoré',
-                                room: 'Amphi A'),
-                          ] else if (_selectedDay == 'Mercredi') ...[
-                            _buildUpcomingCourseCard(
-                                time: '08:00 - 12:00',
-                                title: 'Architectures Cloud & DevOps',
-                                professor: 'Dr. Babou',
-                                room: 'Salle SATIC'),
+                          if (!isAuthenticated) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: outlineVariant),
+                              ),
+                              child: const Text(
+                                'Connectez-vous pour voir votre emploi du temps personnalisé.',
+                                style: TextStyle(
+                                  fontFamily: 'Public Sans',
+                                  fontSize: 16,
+                                  color: onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ] else if (coursesForDay.isEmpty) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: outlineVariant),
+                              ),
+                              child: const Text(
+                                'Aucun cours prévu pour ce jour.',
+                                style: TextStyle(
+                                  fontFamily: 'Public Sans',
+                                  fontSize: 16,
+                                  color: onSurfaceVariant,
+                                ),
+                              ),
+                            ),
                           ] else ...[
-                            // Rendu par défaut pour les autres jours pour simuler du contenu
-                            _buildUpcomingCourseCard(
-                                time: '09:00 - 12:00',
-                                title: 'Systèmes d\'Information',
-                                professor: 'M. Faye',
-                                room: 'Salle B2'),
+                            ...coursesForDay.map((course) {
+                              return Column(
+                                children: [
+                                  _buildUpcomingCourseCard(
+                                    time:
+                                        '${course.startTime} - ${course.endTime}',
+                                    title: course.title,
+                                    professor: course.teacher,
+                                    room: course.room,
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                              );
+                            }).toList(),
                           ],
 
                           const SizedBox(height: 24),
@@ -418,17 +331,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                       color: Colors.white70),
                                 ),
                                 const SizedBox(height: 16),
-                                _buildBentoRow('Cours total',
-                                    _selectedDay == 'Lundi' ? '4' : '2'),
+                                _buildBentoRow('Cours total', '$totalCourses'),
                                 const Divider(
                                     color: onPrimaryContainer, height: 20),
-                                _buildBentoRow('Heures',
-                                    _selectedDay == 'Lundi' ? '8h' : '4h'),
+                                _buildBentoRow('Heures', '${totalHours}h'),
                                 const SizedBox(height: 16),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
                                   child: LinearProgressIndicator(
-                                    value: _selectedDay == 'Lundi' ? 0.25 : 0.0,
+                                    value: totalCourses > 0 ? 0.25 : 0.0,
                                     backgroundColor: onPrimaryContainer,
                                     valueColor:
                                         const AlwaysStoppedAnimation<Color>(
@@ -438,9 +349,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  _selectedDay == 'Lundi'
-                                      ? '1/4 cours terminé'
-                                      : '0 cours terminé',
+                                  totalCourses > 0
+                                      ? 'Vous avez $totalCourses cours aujourd\'hui.'
+                                      : 'Aucun cours aujourd\'hui.',
                                   style: const TextStyle(
                                       fontFamily: 'Public Sans',
                                       fontSize: 12,
@@ -548,31 +459,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  // Raccourci d'implémentation pour le séparateur "Après-midi"
-  Widget _buildAfternoonSeparator() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE6E8EA),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: const Text(
-            'APRÈS-MIDI',
-            style: TextStyle(
-                fontFamily: 'Public Sans',
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Container(height: 1, color: outlineVariant)),
-      ],
-    );
-  }
-
   // Helper épuré pour construire les cartes de cours à venir
   Widget _buildUpcomingCourseCard({
     required String time,
@@ -641,6 +527,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         ],
       ),
     );
+  }
+
+  int _courseDurationHours(CourseModel course) {
+    final startValue = _parseTimeToDouble(course.startTime);
+    final endValue = _parseTimeToDouble(course.endTime);
+    final duration = (endValue - startValue).round();
+    return duration < 0 ? 0 : duration;
+  }
+
+  double _parseTimeToDouble(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) return 0.0;
+    final hours = int.tryParse(parts[0]) ?? 0;
+    final minutes = int.tryParse(parts[1]) ?? 0;
+    return hours + minutes / 60.0;
   }
 
   // Helper pour l'aperçu Bento

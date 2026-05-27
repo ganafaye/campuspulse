@@ -1,24 +1,20 @@
 // lib/presentation/screens/login_screen.dart
 
 import 'package:flutter/material.dart';
-import 'student_home_screen.dart'; // Importation de l'écran d'accueil étudiant pour la navigation après connexion réussie
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:campuspulse/presentation/providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  // Contrôleurs pour récupérer le texte des champs
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  // Clé globale pour la validation du formulaire
   final _formKey = GlobalKey<FormState>();
-
-  // Variable pour masquer/afficher le mot de passe
   bool _isPasswordObscured = true;
 
   @override
@@ -30,11 +26,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF00113A); // Bleu Sombre Principal
-    const Color primaryContainer = Color(0xFF002366); // Bleu Royal
-    const Color secondaryColor = Color(0xFF115CB9); // Bleu Éclatant
-    const Color backgroundColor = Color(0xFFF8F9FB); // Fond clair maquette
-    const Color outlineVariant = Color(0xFFC5C6D2); // Bordures légères
+    // On récupère l'état actuel pour gérer les chargements et les erreurs dans l'UI
+    final authState = ref.watch(authProvider);
+
+    // Écouteur réactif : Dès que la connexion est validée, on ferme cet écran.
+    // Le main.dart prendra automatiquement le relais pour afficher l'écran connecté.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next is AuthAuthenticated) {
+        Navigator.of(context).pop(); 
+      }
+    });
+
+    const Color primaryColor = Color(0xFF00113A);
+    const Color primaryContainer = Color(0xFF002366);
+    const Color secondaryColor = Color(0xFF115CB9);
+    const Color backgroundColor = Color(0xFFF8F9FB);
+    const Color outlineVariant = Color(0xFFC5C6D2);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -43,10 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: primaryColor),
-          onPressed: () {
-            // Retour à l'écran précédent
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: SafeArea(
@@ -58,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                // Logo ou Icône d'en-tête
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -66,16 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: primaryContainer.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.school,
-                      size: 60,
-                      color: primaryColor,
-                    ),
+                    child: const Icon(Icons.school, size: 60, color: primaryColor),
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Titre principal
                 const Text(
                   'Connexion',
                   style: TextStyle(
@@ -95,8 +92,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 36),
+                
+                // ZONE D'AFFICHAGE DE L'ERREUR DE CONNEXION
+                if (authState is AuthError) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFDAD9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      authState.message,
+                      style: const TextStyle(
+                        fontFamily: 'Public Sans',
+                        color: Color(0xFF410002),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
-                // Champ Identifiant / Email
                 const Text(
                   'Adresse email institutionnelle',
                   style: TextStyle(
@@ -110,13 +128,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style:
-                      const TextStyle(fontFamily: 'Public Sans', fontSize: 15),
+                  style: const TextStyle(fontFamily: 'Public Sans', fontSize: 15),
                   decoration: InputDecoration(
                     hintText: 'prenom.nom@uadb.edu.sn',
                     hintStyle: const TextStyle(color: Colors.grey),
-                    prefixIcon:
-                        const Icon(Icons.email_outlined, color: primaryColor),
+                    prefixIcon: const Icon(Icons.email_outlined, color: primaryColor),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -130,20 +146,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: secondaryColor, width: 2),
+                      borderSide: const BorderSide(color: secondaryColor, width: 2),
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Veuillez entrer votre adresse email';
                     }
+                    if (!value.contains('@uadb.edu.sn')) {
+                      return 'Veuillez utiliser votre email institutionnel UADB';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // Champ Mot de passe
                 const Text(
                   'Mot de passe',
                   style: TextStyle(
@@ -157,13 +173,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _isPasswordObscured,
-                  style:
-                      const TextStyle(fontFamily: 'Public Sans', fontSize: 15),
+                  style: const TextStyle(fontFamily: 'Public Sans', fontSize: 15),
                   decoration: InputDecoration(
                     hintText: '••••••••••••',
                     hintStyle: const TextStyle(color: Colors.grey),
-                    prefixIcon:
-                        const Icon(Icons.lock_outlined, color: primaryColor),
+                    prefixIcon: const Icon(Icons.lock_outlined, color: primaryColor),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isPasswordObscured
@@ -190,8 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: secondaryColor, width: 2),
+                      borderSide: const BorderSide(color: secondaryColor, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -201,8 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-
-                // Mot de passe oublié
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -219,40 +230,50 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Bouton de connexion Se Connecter
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Redirection vers le tableau de bord connecté
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (context) => const StudentHomeScreen(),
-                          ),
-                          (route) =>
-                              false, // Supprime l'historique de navigation pour éviter un retour en arrière sur le login
-                        );
-                      }
-                    },
+                    onPressed: authState is AuthLoading
+                        ? null // Désactive le bouton pendant le chargement
+                        : () {
+                            if (_formKey.currentState!.validate()) {
+                              final email = _emailController.text.trim();
+                              final codeEtudiant = email.split('@')[0].toUpperCase();
+                              final password = _passwordController.text;
+
+                              // On déclenche le login local
+                              ref
+                                  .read(authProvider.notifier)
+                                  .login(codeEtudiant, password);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: primaryColor.withOpacity(0.6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Se connecter',
-                      style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: authState is AuthLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            'Se connecter',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),

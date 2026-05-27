@@ -1,9 +1,13 @@
 // lib/presentation/screens/profile_screen.dart
 
+import 'package:campuspulse/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
-import 'guest_home_screen.dart'; // Import de l'écran d'accueil invité pour la redirection après déconnexion
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 🌟 AJOUT : Import de Riverpod
+// 🌟 AJOUT : Ajuste le chemin selon ton projet
+import 'guest_home_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+// 🌟 MODIFICATION : Passage de StatelessWidget à ConsumerWidget pour utiliser "ref"
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   // Constantes de couleur extraites de ta maquette HTML
@@ -17,10 +21,10 @@ class ProfileScreen extends StatelessWidget {
   static const Color errorColor = Color(0xFFBA1A1A);
 
   @override
-  Widget build(BuildContext context) {
+  // 🌟 MODIFICATION : Ajout du paramètre "WidgetRef ref" ici
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      // TopAppBar de ta maquette
       appBar: AppBar(
         backgroundColor: backgroundColor,
         elevation: 0,
@@ -59,7 +63,6 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     Stack(
                       children: [
-                        // Avatar Photo de l'étudiant
                         Container(
                           width: 96,
                           height: 96,
@@ -89,7 +92,6 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Bouton d'édition (Crayon) repositionné comme sur la maquette
                         Positioned(
                           bottom: 0,
                           right: 0,
@@ -111,7 +113,6 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Nom complet
                     const Text(
                       'Gana Faye',
                       style: TextStyle(
@@ -122,7 +123,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Filière / Classe
                     const Text(
                       "Master 1 Systèmes d'Information",
                       style: TextStyle(
@@ -188,7 +188,6 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // --- LISTE DES ACTIONS COMPLÉMENTAIRES ---
               _buildActionButton(
                 label: 'Historique Académique',
                 icon: Icons.history_edu,
@@ -203,11 +202,9 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // --- BOUTON SE DÉCONNECTER ---
-              // --- BOUTON SE DÉCONNECTER ---
+              // --- BOUTON SE DÉCONNECTER CORRIGÉ ---
               OutlinedButton.icon(
                 onPressed: () {
-                  // Dialogue de confirmation de déconnexion
                   showDialog(
                     context: context,
                     builder: (BuildContext dialogContext) {
@@ -223,8 +220,7 @@ class ProfileScreen extends StatelessWidget {
                             'Êtes-vous sûr de vouloir vous déconnecter de CampusPulse ?'),
                         actions: [
                           TextButton(
-                            onPressed: () =>
-                                Navigator.pop(dialogContext), // Ferme l'alerte
+                            onPressed: () => Navigator.pop(dialogContext),
                             child: const Text(
                               'Annuler',
                               style: TextStyle(color: onSurfaceVariant),
@@ -232,17 +228,23 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           TextButton(
                             onPressed: () {
-                              Navigator.pop(dialogContext); // Ferme l'alerte
+                              // 1. On ferme le dialogue d'abord
+                              Navigator.pop(dialogContext);
 
-                              // Redirection vers l'accueil invité (WelcomeScreen)
-                              // En effaçant tout l'historique de navigation
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(
-                                  builder: (context) => const GuestHomeScreen(),
-                                ),
-                                (Route<dynamic> route) =>
-                                    false, // Vide toute la pile
-                              );
+                              // 2. On appelle la méthode sans 'await' et sans 'final'
+                              // C'est ici qu'il ne doit plus y avoir de 'await'
+                              ref.read(authProvider.notifier).logout();
+
+                              // 3. On fait la navigation (en vérifiant le contexte)
+                              if (context.mounted) {
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const GuestHomeScreen(),
+                                  ),
+                                  (Route<dynamic> route) => false,
+                                );
+                              }
                             },
                             child: const Text(
                               'Se déconnecter',
@@ -284,9 +286,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // Les fonctions _buildInfoCard et _buildActionButton restent inchangées en dessous si présentes
-
-  // Petit constructeur de cartes d'informations
   Widget _buildInfoCard({
     required String title,
     required String value,
@@ -350,7 +349,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // Petit constructeur pour les lignes cliquables (Historique, Documents)
   Widget _buildActionButton({
     required String label,
     required IconData icon,
