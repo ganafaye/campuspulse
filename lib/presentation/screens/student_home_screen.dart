@@ -1,8 +1,9 @@
 // lib/presentation/screens/student_home_screen.dart
 
 import 'package:flutter/material.dart';
-// 1. IMPORTATION DE VOTRE ÉCRAN D'EMPLOI DU TEMPS
 import 'schedule_screen.dart';
+import 'alerts_screen.dart';
+import 'profile_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -49,22 +50,32 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 2. CONNEXION DE L'INDEX 1 À VOTRE ÉCRAN SCHEDULE_SCREEN
+    // Liste des écrans gérés par l'IndexedStack
     final List<Widget> _interfaces = [
       _buildHomeContent(), // Index 0 : Accueil
-      const ScheduleScreen(), // Index 1 : Votre nouvel écran d'emploi du temps connecté !
+      const ScheduleScreen(), // Index 1 : Emploi du temps
+      const AlertsScreen(),
+      const ProfileScreen(), // Index 3 : TON ÉCRAN PROFIL ENTIÈREMENT INTÉGRÉ
       const Center(
-          child: Text('Alertes & Notifications',
-              style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 18,
-                  color: primaryColor))), // Index 2
+        child: Text(
+          'Alertes & Notifications',
+          style: TextStyle(
+            fontFamily: 'Public Sans',
+            fontSize: 18,
+            color: primaryColor,
+          ),
+        ),
+      ), // Index 2
       const Center(
-          child: Text('Mon Profil',
-              style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 18,
-                  color: primaryColor))), // Index 3
+        child: Text(
+          'Mon Profil',
+          style: TextStyle(
+            fontFamily: 'Public Sans',
+            fontSize: 18,
+            color: primaryColor,
+          ),
+        ),
+      ), // Index 3
     ];
 
     return Scaffold(
@@ -89,16 +100,26 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.search, color: Colors.white),
-              onPressed: () {}),
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: () {},
+          ),
           IconButton(
-              icon: const Icon(Icons.notifications_none, color: Colors.white),
-              onPressed: () {}),
+            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _currentIndex = 2; // Redirige vers l'onglet Alertes
+              });
+            },
+          ),
           const SizedBox(width: 8),
         ],
       ),
+      // CORRECTION: Remplacement de l'accès direct par un IndexedStack pour figer l'état des écrans
       body: SafeArea(
-        child: _interfaces[_currentIndex],
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _interfaces,
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -109,17 +130,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: onSecondaryContainer,
+        selectedItemColor:
+            secondaryColor, // Rendu visuel plus harmonieux avec la charte
         unselectedItemColor: onSurfaceVariant,
         selectedLabelStyle: const TextStyle(
-            fontFamily: 'Public Sans',
-            fontSize: 11,
-            fontWeight: FontWeight.bold),
-        unselectedLabelStyle:
-            const TextStyle(fontFamily: 'Public Sans', fontSize: 11),
+          fontFamily: 'Public Sans',
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Public Sans',
+          fontSize: 11,
+        ),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-          // L'icône Icons.calendar_month ou Icons.schedule correspond parfaitement à l'emploi du temps
           BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month), label: 'Emploi'),
           BottomNavigationBarItem(
@@ -155,7 +179,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Widget: Prochain Cours (Bouton "Voir les détails" configuré pour rediriger aussi vers l'emploi du temps)
+          // Widget: Prochain Cours (Bouton "Voir les détails" configuré pour rediriger vers l'emploi du temps)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -205,9 +229,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     Text(
                       '08h00 - 10h00',
                       style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          color: Colors.white70,
-                          fontSize: 14),
+                        fontFamily: 'Public Sans',
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                     SizedBox(width: 16),
                     Icon(Icons.location_on, color: Colors.white70, size: 18),
@@ -215,9 +240,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     Text(
                       'Salle B1 - SATIC',
                       style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          color: Colors.white70,
-                          fontSize: 14),
+                        fontFamily: 'Public Sans',
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -233,7 +259,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: primaryColor,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 12),
                     elevation: 0,
@@ -241,9 +268,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   child: const Text(
                     'Voir les détails',
                     style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14),
+                      fontFamily: 'Public Sans',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -251,7 +279,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Shortcuts Grid (Le raccourci "Mon Agenda" redirige également sur l'emploi du temps)
+          // Raccourcis (Grid)
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -263,7 +291,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    _currentIndex = 1;
+                    _currentIndex = 1; // Redirige vers l'emploi du temps
                   });
                 },
                 child: _buildShortcutItem(Icons.calendar_month, 'Mon Agenda'),
@@ -282,18 +310,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               const Text(
                 'Vie du Campus',
                 style: TextStyle(
-                    fontFamily: 'Public Sans',
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor),
+                  fontFamily: 'Public Sans',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
               ),
               TextButton(
                 onPressed: () {},
-                child: const Text('Tout voir',
-                    style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontWeight: FontWeight.bold,
-                        color: secondaryColor)),
+                child: const Text(
+                  'Tout voir',
+                  style: TextStyle(
+                    fontFamily: 'Public Sans',
+                    fontWeight: FontWeight.bold,
+                    color: secondaryColor,
+                  ),
+                ),
               ),
             ],
           ),
@@ -326,8 +358,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: const Color(0xFFE0E3E5),
-                              child: const Icon(Icons.broken_image,
-                                  color: Colors.grey, size: 40),
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
                             );
                           },
                         ),
@@ -349,18 +384,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Text(item['title']!,
-                                style: const TextStyle(
-                                    fontFamily: 'Public Sans',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryColor)),
+                            Text(
+                              item['title']!,
+                              style: const TextStyle(
+                                fontFamily: 'Public Sans',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
                             const SizedBox(height: 4),
-                            Text(item['subtitle']!,
-                                style: const TextStyle(
-                                    fontFamily: 'Public Sans',
-                                    fontSize: 13,
-                                    color: onSurfaceVariant)),
+                            Text(
+                              item['subtitle']!,
+                              style: const TextStyle(
+                                fontFamily: 'Public Sans',
+                                fontSize: 13,
+                                color: onSurfaceVariant,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -384,12 +425,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               children: [
                 const Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Text('Ressources Utiles',
-                      style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor)),
+                  child: Text(
+                    'Ressources Utiles',
+                    style: TextStyle(
+                      fontFamily: 'Public Sans',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                    ),
+                  ),
                 ),
                 const Divider(height: 1, color: outlineVariant),
                 _buildResourceRow(Icons.description, 'Règlement Intérieur'),
@@ -457,9 +501,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             child: Text(
               title,
               style: const TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500),
+                fontFamily: 'Public Sans',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const Icon(Icons.chevron_right, color: Colors.grey, size: 20),

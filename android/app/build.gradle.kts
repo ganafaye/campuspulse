@@ -20,14 +20,16 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
         // Modification pour l'identifiant unique officiel de ton app
         applicationId = "sn.edu.uadb.campuspulse"
         
-        minSdk = flutter.minSdkVersion
+        // CORRECTION MOBILE : On force le SDK minimum à 21 au lieu de laisser Flutter choisir une version trop ancienne
+        minSdk = flutter.minSdkVersion 
+        
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
