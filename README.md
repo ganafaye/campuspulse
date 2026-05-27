@@ -55,6 +55,10 @@ flutter run
 * **25/05/2026 [Gana]** - Résolution du bug de compilation Android (Activation du *Core Library Desugaring* en Kotlin DSL dans `build.gradle` et génération de l'APK).
 * **25/05/2026 [Gana]** - Création de la structure Clean Architecture et génération de l'arborescence des fichiers d'écrans (`screens/` et `widgets/`).
 
+* **26/05/2026 [Gana]** - Mise en place des écrans d'acceuille`.
+* **26/05/2026 [Gana]** - Mise en place de l'ecran Login.
+* **26/05/2026 [Gana]** - Mise en place de l'ecran emplois du temps mais pas encore conncté.
+* 
 *(👉 Prochaine modification à ajouter ici par un membre du groupe)*
 
 ```
