@@ -58,7 +58,24 @@ flutter run
 * **26/05/2026 [Gana]** - Mise en place des écrans d'acceuille`.
 * **26/05/2026 [Gana]** - Mise en place de l'ecran Login.
 * **26/05/2026 [Gana]** - Mise en place de l'ecran emplois du temps mais pas encore conncté.
-* 
+
+* **27/05/2026 [Gana]** - Résolution du Bug Mobile & Initialisation des Modules Métiers
+* **27/05/2026 [Gana]** - Fix (Android) : Résolution du crash critique ClassNotFoundException au lancement sur mobile (émulateurs et téléphones physiques).
+
+* **27/05/2026 [Gana]** - Alignement du namespace et déplacement physique du fichier vers android/app/src/main/kotlin/sn/edu/uadb/campuspulse/MainActivity.kt.
+
+* **27/05/2026 [Gana]** - Forçage du SDK Android minimal à minSdk = 21 dans le fichier build.gradle.kts pour supporter le mécanisme de Desugaring requis par le système de notifications.
+
+* **27/05/2026 [Gana]** - Ajout des liaisons matérielles obligatoires WidgetsFlutterBinding.ensureInitialized() dans le point d'entrée lib/main.dart.
+
+* **27/05/2026 [Gana]** - Écran des Alertes Médicales (AlertsScreen) : Conception du centre de notifications pour les alertes sanitaires et urgences de l'université.
+
+* **27/05/2026 [Gana]** - Écran de Profil Éudiant (ProfileScreen) : Intégration de l'interface affichant les informations personnelles et le statut médical de l'étudiant connecté.
+* **27/05/2026 [Gana]** - Ajout de l'écran de sélection de profil (simulateur d'étudiants UADB).
+**27/05/2026 [Gana]** - Filtrage dynamique de l'emploi du temps selon l'UID de l'utilisateur connecté.
+**27/05/2026 [Gana]** - Refactoring de l'écran d'alertes pour accepter des données de notifications dynamiques.
+**27/05/2026 [Gana]** - Configuration initiale et structure du NotificationService (flutter_local_notifications).
+
 *(👉 Prochaine modification à ajouter ici par un membre du groupe)*
 
 ```
