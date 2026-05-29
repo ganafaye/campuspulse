@@ -1,5 +1,9 @@
 // lib/main.dart
 
+// Importations indispensables pour Firebase
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // Généré avec succès à l'étape précédente
+
 // Importation du gestionnaire d'état que l'on vient de concevoir
 import 'package:campuspulse/presentation/providers/auth_provider.dart';
 import 'package:campuspulse/service/notification_service.dart';
@@ -12,8 +16,20 @@ import 'presentation/screens/guest_home_screen.dart';
 import 'presentation/screens/student_home_screen.dart';
 
 Future<void> main() async {
-  // Optionnel mais recommandé : Sécurise les liaisons matérielles de Flutter avant le lancement
+  // 1. Sécurise les liaisons matérielles de Flutter (Indispensable avant d'initialiser Firebase)
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    // 2. Initialisation officielle de Firebase avec les options générées
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print("🚀 DEBUG - Firebase initialisé avec succès !");
+  } catch (e) {
+    print("⚠️ DEBUG - Erreur lors de l'initialisation de Firebase : $e");
+  }
+
+  // 3. Initialisation du service de notifications local
   await NotificationService.init();
 
   runApp(

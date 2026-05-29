@@ -89,6 +89,8 @@ class NotificationService {
     // Si l'heure planifiée est déjà passée, on ne fait rien
     if (scheduledDateTime.isBefore(DateTime.now())) return;
 
+    await _notificationsPlugin.cancel(id);
+
     await _notificationsPlugin.zonedSchedule(
       id,
       title,
@@ -109,8 +111,11 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  static Future<void> cancelNotification(int id) async {
+    await _notificationsPlugin.cancel(id);
   }
 
   // 3. Notification in-app (Banner/Overlay style WhatsApp)

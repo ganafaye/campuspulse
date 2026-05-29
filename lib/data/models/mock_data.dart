@@ -1,6 +1,6 @@
 // lib/data/mock_data.dart
 
-import '../models/user_model.dart'; // Ajuste le chemin selon ton projet
+import 'user_model.dart'; // Import local du modèle d'utilisateur
 
 // ==========================================
 // 1. LISTE DES 4 UTILISATEURS DE TEST

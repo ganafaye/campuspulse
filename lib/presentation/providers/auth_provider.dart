@@ -2,20 +2,27 @@
 
 import 'package:campuspulse/data/models/mock_data.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/user_model.dart'; 
- // Importation de la liste mockUsers qu'on vient de créer
+import '../../data/models/user_model.dart';
+import '../../service/firebase_service.dart';
+// Importation de la liste mockUsers qu'on vient de créer
 
 // Les états possibles de l'authentification
 abstract class AuthState {}
 
 class AuthInitial extends AuthState {}
-class AuthLoading extends AuthState {} // Ajouté pour l'effet visuel de chargement
+
+class AuthLoading
+    extends AuthState {} // Ajouté pour l'effet visuel de chargement
+
 class AuthUnauthenticated extends AuthState {}
+
 class AuthAuthenticated extends AuthState {
   final UserModel user;
   AuthAuthenticated(this.user);
 }
-class AuthError extends AuthState { // Ajouté pour intercepter les mauvais codes étudiants
+
+class AuthError extends AuthState {
+  // Ajouté pour intercepter les mauvais codes étudiants
   final String message;
   AuthError(this.message);
 }
@@ -30,7 +37,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Simulation de connexion avec les 4 utilisateurs de test
   Future<void> login(String codeEtudiant, String password) async {
     print("Tentative de login pour : $codeEtudiant");
-    
+
     if (codeEtudiant.isEmpty || password.isEmpty) {
       state = AuthError("Veuillez remplir tous les champs.");
       return;
@@ -45,20 +52,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final cleanedCode = codeEtudiant.trim().toUpperCase();
 
     try {
-      // On cherche l'étudiant correspondant dans notre liste mockUsers
+      // Premièrement, tente la recherche côté Firebase
+      final firebaseService = FirebaseService();
+      final userMap = await firebaseService.loginStudent(cleanedCode);
+
+      if (userMap != null) {
+        final user = UserModel.fromMap(userMap, id: userMap['uid']);
+        state = AuthAuthenticated(user);
+        print(
+            "DEBUG - Connexion Firebase réussie pour : ${user.name} (${user.ufr})");
+        return;
+      }
+
+      // Fallback: recherche dans les mockUsers si Firebase n'a rien retourné
       final userFound = mockUsers.firstWhere(
         (user) => user.codeEtudiant == cleanedCode,
       );
-
-      // Si trouvé, on passe en authentifié avec cet utilisateur
       state = AuthAuthenticated(userFound);
-      print("DEBUG - Connexion réussie pour : ${userFound.name} (${userFound.ufr})");
-      
+      print(
+          "DEBUG - Connexion locale réussie pour : ${userFound.name} (${userFound.ufr})");
     } catch (e) {
-      // Si .firstWhere ne trouve rien, il lève une exception qu'on attrape ici
       state = AuthError(
-        "Code inconnu. Essaye : GANA.FAYE, AIMEE.DIEDHIOU, MOUSSA.DIOP ou FATOU.SOW"
-      );
+          "Code inconnu. Vérifie ton code étudiant ou la connexion Firebase.");
     }
   }
 

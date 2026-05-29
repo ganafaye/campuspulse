@@ -3,6 +3,7 @@
 import 'package:campuspulse/data/models/mock_data.dart';
 import 'package:campuspulse/presentation/providers/auth_provider.dart';
 import 'package:campuspulse/service/notification_service.dart';
+import 'package:campuspulse/service/firebase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,27 +31,97 @@ class AlertsScreen extends ConsumerWidget {
     final String currentUserUid =
         isAuthenticated ? authState.user.uid : 'guest';
 
-    final List<CourseModel> userCourses = isAuthenticated
-        ? mockSchedule
-            .where((course) => course.studentUid == currentUserUid)
-            .toList()
-        : [];
+    final firebaseService = FirebaseService();
 
-    final List<CampusAlertModel> userStaticAlerts = isAuthenticated
-        ? mockAlerts
-            .where((alert) =>
-                alert.studentUid == currentUserUid || alert.studentUid == 'all')
-            .toList()
-        : [];
+    if (!isAuthenticated) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          automaticallyImplyLeading: false,
+          title: const Text(
+            'Notifications',
+            style: TextStyle(
+              fontFamily: 'Public Sans',
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: primaryColor,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search, color: primaryColor),
+              onPressed: () {},
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined, color: primaryColor),
+              onPressed: () {},
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "AUJOURD'HUI",
+                      style: TextStyle(
+                        fontFamily: 'Public Sans',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: onSurfaceVariant,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {},
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                      child: const Text(
+                        'Tout marquer comme lu',
+                        style: TextStyle(
+                          fontFamily: 'Public Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: secondaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: outlineVariant),
+                  ),
+                  child: const Text(
+                    'Connectez-vous pour afficher vos alertes personnalisées de cours.',
+                    style: TextStyle(
+                      fontFamily: 'Public Sans',
+                      fontSize: 16,
+                      color: onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
-    final List<CampusAlertModel> reminderAlerts =
-        _buildReminderAlerts(userCourses);
-
-    final List<CampusAlertModel> allAlerts = [
-      ...reminderAlerts,
-      ...userStaticAlerts,
-    ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
+    // Si l'utilisateur est authentifié, on surveille les changements Firebase
+    // et on affiche les alertes en temps réel
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -79,206 +150,143 @@ class AlertsScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "AUJOURD'HUI",
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: onSurfaceVariant,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
-                      'Tout marquer comme lu',
-                      style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: secondaryColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (!isAuthenticated) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: outlineVariant),
-                  ),
-                  child: const Text(
-                    'Connectez-vous pour afficher vos alertes personnalisées de cours.',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 16,
-                      color: onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ] else ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        userCourses.isEmpty
-                            ? 'Aucune alerte de cours pour le moment.'
-                            : 'Vous avez ${userCourses.length} cours programmés. Utilisez les tests de notification ci-dessous.',
-                        style: const TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontSize: 15,
-                          color: onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (userCourses.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          final nextCourse = _findNextCourse(userCourses);
-                          if (nextCourse == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Aucun cours disponible pour tester.'),
-                              ),
-                            );
-                            return;
-                          }
+        child: FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            firebaseService.getCoursesRef().get(),
+            firebaseService.getAlertsRef().get(),
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                          final scheduledTime = _nextReminderTime(nextCourse);
-                          await NotificationService.scheduleNotification(
-                            id: nextCourse.title.hashCode,
-                            title: 'Rappel de cours',
-                            body:
-                                'Votre cours de ${nextCourse.title} commence dans 15 minutes à ${nextCourse.room}.',
-                            scheduledDateTime: scheduledTime,
-                          );
+            final coursesSnap = snapshot.data?[0];
+            final alertsSnap = snapshot.data?[1];
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Notification programmée pour ${nextCourse.title}'),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryContainer,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Tester rappel',
-                          style: TextStyle(
-                            fontFamily: 'Public Sans',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await NotificationService.showImmediateNotification(
-                            id: userCourses.first.title.hashCode,
-                            title: 'Changement de salle',
-                            body:
-                                'Votre prochain cours a une modification de salle ou d’horaire.',
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Notification de test envoyée immédiatement.'),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: secondaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Tester urgent',
-                          style: TextStyle(
-                            fontFamily: 'Public Sans',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 24),
-              ],
-              if (allAlerts.isEmpty) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: outlineVariant),
-                  ),
-                  child: const Text(
-                    'Aucune notification active pour le moment.',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 16,
-                      color: onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ] else
-                ...allAlerts.map((alert) {
-                  return Column(
-                    children: [
-                      _buildNotificationCard(
-                        indicatorColor: _getIndicatorColor(alert.category),
-                        iconWidget: _getIconWidget(alert.category),
-                        tagText: alert.category,
-                        tagColor: _getIndicatorColor(alert.category),
-                        timeText: _formatRelativeTime(alert.timestamp),
-                        bodyText: alert.subtitle,
-                        actionWidget: _buildActionWidget(context, alert),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+            List<CourseModel> userCourses = [];
+            List<CampusAlertModel> userStaticAlerts = [];
+
+            try {
+              if (coursesSnap != null && coursesSnap.value != null) {
+                final Map<dynamic, dynamic> coursesData =
+                    Map<dynamic, dynamic>.from(coursesSnap.value as Map);
+                for (var entry in coursesData.entries) {
+                  final map = Map<String, dynamic>.from(entry.value as Map);
+                  // Normalize into the mock CourseModel shape
+                  String parseTimeString(dynamic v) {
+                    if (v == null) return '00:00';
+                    if (v is String) return v;
+                    if (v is int) {
+                      final dt = DateTime.fromMillisecondsSinceEpoch(v);
+                      final hh = dt.hour.toString().padLeft(2, '0');
+                      final mm = dt.minute.toString().padLeft(2, '0');
+                      return '$hh:$mm';
+                    }
+                    if (v is DateTime) {
+                      final hh = v.hour.toString().padLeft(2, '0');
+                      final mm = v.minute.toString().padLeft(2, '0');
+                      return '$hh:$mm';
+                    }
+                    return v.toString();
+                  }
+
+                  final studentUid = map['studentUid'] ??
+                      map['student'] ??
+                      map['student_uid'] ??
+                      map['studentId'] ??
+                      '';
+                  final start = parseTimeString(map['startTime'] ??
+                      map['debutTime'] ??
+                      map['start'] ??
+                      map['debut'] ??
+                      map['start_time']);
+                  final end = parseTimeString(map['endTime'] ??
+                      map['finTime'] ??
+                      map['end'] ??
+                      map['fin'] ??
+                      map['end_time']);
+
+                  final course = CourseModel(
+                    studentUid: studentUid,
+                    title: map['title'] ?? map['titre'] ?? map['name'] ?? '',
+                    room: map['room'] ?? map['classe'] ?? map['salle'] ?? '',
+                    teacher: map['teacher'] ??
+                        map['professeur'] ??
+                        map['enseignant'] ??
+                        '',
+                    day: map['day'] ?? map['jour'] ?? '',
+                    startTime: start,
+                    endTime: end,
                   );
-                }).toList(),
-            ],
-          ),
+                  userCourses.add(course);
+                }
+              }
+
+              if (alertsSnap != null && alertsSnap.value != null) {
+                final Map<dynamic, dynamic> alertsData =
+                    Map<dynamic, dynamic>.from(alertsSnap.value as Map);
+                for (var entry in alertsData.entries) {
+                  final map = Map<String, dynamic>.from(entry.value as Map);
+                  final ts = map['timestamp'] ?? map['time'] ?? map['date'];
+                  DateTime parsedTs = DateTime.now();
+                  try {
+                    if (ts is int) {
+                      parsedTs = DateTime.fromMillisecondsSinceEpoch(ts);
+                    } else if (ts is String) {
+                      parsedTs = DateTime.parse(ts);
+                    }
+                  } catch (_) {}
+
+                  final alert = CampusAlertModel(
+                    id: entry.key,
+                    studentUid: map['studentUid'] ??
+                        map['student'] ??
+                        map['student_uid'] ??
+                        'all',
+                    title: map['title'] ?? map['tag'] ?? map['titre'] ?? '',
+                    subtitle:
+                        map['subtitle'] ?? map['message'] ?? map['body'] ?? '',
+                    category: (map['category'] ?? map['type'] ?? 'INFO')
+                        .toString()
+                        .toUpperCase(),
+                    timestamp: parsedTs,
+                  );
+                  userStaticAlerts.add(alert);
+                }
+              }
+            } catch (e) {
+              // En cas d'erreur de parsing, on retombera sur les données mock
+              userCourses = mockSchedule
+                  .where((c) => c.studentUid == currentUserUid)
+                  .toList();
+              userStaticAlerts = mockAlerts
+                  .where((a) =>
+                      a.studentUid == currentUserUid || a.studentUid == 'all')
+                  .toList();
+            }
+
+            final currentUserCourses = userCourses
+                .where((c) => c.studentUid == currentUserUid)
+                .toList();
+            final reminderAlerts = _buildReminderAlerts(currentUserCourses);
+
+            // Combiner les alertes : rappels et statiques
+            final allAlerts = [
+              // Alertes de rappel
+              ...reminderAlerts,
+              // Alertes statiques Firebase
+              ...userStaticAlerts.where((a) =>
+                  a.studentUid == currentUserUid || a.studentUid == 'all'),
+            ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+            return _alertsBody(
+              context,
+              isAuthenticated,
+              currentUserCourses,
+              allAlerts,
+              currentUserUid,
+            );
+          },
         ),
       ),
     );
@@ -507,7 +515,7 @@ class AlertsScreen extends ConsumerWidget {
         border: Border.all(color: outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withAlpha((0.03 * 255).round()),
             spreadRadius: 0,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -585,6 +593,250 @@ class AlertsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Méthode utilitaire pour rendre la vue des alertes (utilisée par le FutureBuilder)
+extension on AlertsScreen {
+  Widget _alertsBody(
+    BuildContext context,
+    bool isAuthenticated,
+    List<CourseModel> currentUserCourses,
+    List<CampusAlertModel> allAlerts,
+    String currentUserUid,
+  ) {
+    final bool hasCourses = currentUserCourses.isNotEmpty;
+    // reuse colors defined in the widget via constants by instantiating the widget
+    return Scaffold(
+      backgroundColor: AlertsScreen.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Notifications',
+          style: TextStyle(
+            fontFamily: 'Public Sans',
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: AlertsScreen.primaryColor,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: AlertsScreen.primaryColor),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined,
+                color: AlertsScreen.primaryColor),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "AUJOURD'HUI",
+                    style: TextStyle(
+                      fontFamily: 'Public Sans',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AlertsScreen.onSurfaceVariant,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Text(
+                      'Tout marquer comme lu',
+                      style: TextStyle(
+                        fontFamily: 'Public Sans',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AlertsScreen.secondaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (!hasCourses) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AlertsScreen.outlineVariant),
+                  ),
+                  child: const Text(
+                    'Aucun cours personnel trouvé pour ce compte.',
+                    style: TextStyle(
+                      fontFamily: 'Public Sans',
+                      fontSize: 16,
+                      color: AlertsScreen.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Vous avez ${currentUserCourses.length} cours programmés. Utilisez les tests de notification ci-dessous.',
+                        style: const TextStyle(
+                          fontFamily: 'Public Sans',
+                          fontSize: 15,
+                          color: AlertsScreen.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        final nextCourse = _findNextCourse(currentUserCourses);
+                        if (nextCourse == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('Aucun cours disponible pour tester.'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final messenger = ScaffoldMessenger.of(context);
+                        final scheduledTime = _nextReminderTime(nextCourse);
+                        await NotificationService.scheduleNotification(
+                          id: nextCourse.title.hashCode,
+                          title: 'Rappel de cours',
+                          body:
+                              'Votre cours de ${nextCourse.title} commence dans 15 minutes à ${nextCourse.room}.',
+                          scheduledDateTime: scheduledTime,
+                        );
+
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Notification programmée pour ${nextCourse.title}'),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AlertsScreen.primaryContainer,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Tester rappel',
+                        style: TextStyle(
+                          fontFamily: 'Public Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await NotificationService.showImmediateNotification(
+                          id: currentUserCourses.first.title.hashCode,
+                          title: 'Changement de salle',
+                          body:
+                              'Votre prochain cours a une modification de salle ou d’horaire.',
+                        );
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Notification de test envoyée immédiatement.'),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AlertsScreen.secondaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Tester urgent',
+                        style: TextStyle(
+                          fontFamily: 'Public Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+              ],
+              if (allAlerts.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AlertsScreen.outlineVariant),
+                  ),
+                  child: const Text(
+                    'Aucune notification active pour le moment.',
+                    style: TextStyle(
+                      fontFamily: 'Public Sans',
+                      fontSize: 16,
+                      color: AlertsScreen.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              else
+                ...allAlerts.map((alert) {
+                  return Column(
+                    children: [
+                      _buildNotificationCard(
+                        indicatorColor: _getIndicatorColor(alert.category),
+                        iconWidget: _getIconWidget(alert.category),
+                        tagText: alert.category,
+                        tagColor: _getIndicatorColor(alert.category),
+                        timeText: _formatRelativeTime(alert.timestamp),
+                        bodyText: alert.subtitle,
+                        actionWidget: _buildActionWidget(context, alert),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }),
+            ],
+          ),
+        ),
       ),
     );
   }
