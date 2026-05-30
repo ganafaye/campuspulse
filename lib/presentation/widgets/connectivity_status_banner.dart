@@ -8,7 +8,9 @@ class ConnectivityStatusBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(connectivityProvider);
-    if (status == ConnectivityStatus.online) {
+    // Do not show anything while checking initial connectivity
+    if (status == ConnectivityStatus.online ||
+        status == ConnectivityStatus.checking) {
       return const SizedBox.shrink();
     }
 

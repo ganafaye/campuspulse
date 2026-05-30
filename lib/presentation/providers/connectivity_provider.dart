@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum ConnectivityStatus {
+  checking,
   online,
   offline,
 }
@@ -13,7 +14,7 @@ class ConnectivityNotifier extends StateNotifier<ConnectivityStatus> {
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<ConnectivityResult>? _subscription;
 
-  ConnectivityNotifier() : super(ConnectivityStatus.offline) {
+  ConnectivityNotifier() : super(ConnectivityStatus.checking) {
     _initialize();
   }
 
@@ -45,10 +46,29 @@ class ConnectivityNotifier extends StateNotifier<ConnectivityStatus> {
   }
 
   Future<bool> _hasInternetAccess() async {
+    // First try DNS lookup
     try {
       final result = await InternetAddress.lookup('example.com')
           .timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } catch (_) {
+      // ignore and try HTTP fallback
+    }
+
+    // Fallback: try a lightweight HTTP request used by many platforms
+    try {
+      final uri = Uri.parse('https://clients3.google.com/generate_204');
+      final httpClient = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 5);
+      final request =
+          await httpClient.getUrl(uri).timeout(const Duration(seconds: 5));
+      request.followRedirects = false;
+      final response =
+          await request.close().timeout(const Duration(seconds: 5));
+      httpClient.close();
+      return response.statusCode == 204;
     } catch (_) {
       return false;
     }
