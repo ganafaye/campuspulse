@@ -1,5 +1,6 @@
 // lib/presentation/screens/guest_home_screen.dart
 
+import 'package:campuspulse/presentation/widgets/connectivity_status_banner.dart';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 
@@ -154,300 +155,311 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Mobile Section
-              const Text(
-                'Bienvenue à l\'UADB',
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              const Text(
-                'Portail Visiteur',
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 2. Widget Hero: Connexion incitative
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [primaryColor, primaryContainer],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+        child: Column(
+          children: [
+            const ConnectivityStatusBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Welcome Mobile Section
                     const Text(
-                      'Connectez-vous pour voir votre emploi du temps',
+                      'Bienvenue à l\'UADB',
                       style: TextStyle(
                         fontFamily: 'Public Sans',
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.3,
+                        color: primaryColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
                     const Text(
-                      'Accédez à vos cours, vos notes et vos services administratifs en un clic.',
+                      'Portail Visiteur',
                       style: TextStyle(
                         fontFamily: 'Public Sans',
                         fontSize: 14,
-                        color: Colors.white70,
+                        color: Colors.grey,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
+
+                    // 2. Widget Hero: Connexion incitative
+                    Container(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (context) => const LoginScreen()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: secondaryContainer,
-                          foregroundColor: onSecondaryContainer,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [primaryColor, primaryContainer],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Se connecter',
-                          style: TextStyle(
-                            fontFamily: 'Public Sans',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 3. Shortcuts Grid avec détection d'appui sur les éléments verrouillés
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 12,
-                children: [
-                  GestureDetector(
-                    onTap: _showLoginRequiredDialog,
-                    child: _buildShortcutItem(
-                        Icons.calendar_month, 'Mon Agenda',
-                        isLocked: true),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      // Action pour ouvrir le site web extérieur si désiré
-                    },
-                    child: _buildShortcutItem(
-                      Icons.language,
-                      'Site Web',
-                      isLocked: false,
-                      secondaryContainer: secondaryContainer,
-                      onSecondaryContainer: onSecondaryContainer,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _showLoginRequiredDialog,
-                    child: _buildShortcutItem(Icons.grade, 'Notes',
-                        isLocked: true),
-                  ),
-                  GestureDetector(
-                    onTap: _showLoginRequiredDialog,
-                    child: _buildShortcutItem(
-                        Icons.contact_phone, 'Contacts UFR',
-                        isLocked: true),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-
-              // 4. Section Vie du Campus
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Vie du Campus',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'Tout voir',
-                      style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontWeight: FontWeight.bold,
-                        color: secondaryColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: campusLife.length,
-                itemBuilder: (context, index) {
-                  final item = campusLife[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: outlineVariant),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(11),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            height: 160,
-                            width: double.infinity,
-                            child: Image.network(
-                              item['imageUrl']!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: const Color(0xFFE0E3E5),
-                                  child: const Icon(Icons.broken_image,
-                                      color: Colors.grey, size: 40),
-                                );
-                              },
+                          const Text(
+                            'Connectez-vous pour voir votre emploi du temps',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.3,
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['category']!,
-                                  style: TextStyle(
-                                    fontFamily: 'Public Sans',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: item['category'] == 'ADMINISTRATION'
-                                        ? const Color(0xFFBA1A1A)
-                                        : secondaryColor,
-                                  ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Accédez à vos cours, vos notes et vos services administratifs en un clic.',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const LoginScreen()),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: secondaryContainer,
+                                foregroundColor: onSecondaryContainer,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  item['title']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Public Sans',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryColor,
-                                  ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'Se connecter',
+                                style: TextStyle(
+                                  fontFamily: 'Public Sans',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  item['subtitle']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Public Sans',
-                                    fontSize: 13,
-                                    color: Color(0xFF444650),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
-              // 5. Section Ressources Utiles
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: outlineVariant),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Ressources Utiles',
-                        style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                    // 3. Shortcuts Grid avec détection d'appui sur les éléments verrouillés
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 4,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 12,
+                      children: [
+                        GestureDetector(
+                          onTap: _showLoginRequiredDialog,
+                          child: _buildShortcutItem(
+                              Icons.calendar_month, 'Mon Agenda',
+                              isLocked: true),
                         ),
+                        InkWell(
+                          onTap: () {
+                            // Action pour ouvrir le site web extérieur si désiré
+                          },
+                          child: _buildShortcutItem(
+                            Icons.language,
+                            'Site Web',
+                            isLocked: false,
+                            secondaryContainer: secondaryContainer,
+                            onSecondaryContainer: onSecondaryContainer,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _showLoginRequiredDialog,
+                          child: _buildShortcutItem(Icons.grade, 'Notes',
+                              isLocked: true),
+                        ),
+                        GestureDetector(
+                          onTap: _showLoginRequiredDialog,
+                          child: _buildShortcutItem(
+                              Icons.contact_phone, 'Contacts UFR',
+                              isLocked: true),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
+                    // 4. Section Vie du Campus
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Vie du Campus',
+                          style: TextStyle(
+                            fontFamily: 'Public Sans',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text(
+                            'Tout voir',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontWeight: FontWeight.bold,
+                              color: secondaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: campusLife.length,
+                      itemBuilder: (context, index) {
+                        final item = campusLife[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: outlineVariant),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(11),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 160,
+                                  width: double.infinity,
+                                  child: Image.network(
+                                    item['imageUrl']!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: const Color(0xFFE0E3E5),
+                                        child: const Icon(Icons.broken_image,
+                                            color: Colors.grey, size: 40),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['category']!,
+                                        style: TextStyle(
+                                          fontFamily: 'Public Sans',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: item['category'] ==
+                                                  'ADMINISTRATION'
+                                              ? const Color(0xFFBA1A1A)
+                                              : secondaryColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item['title']!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Public Sans',
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item['subtitle']!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Public Sans',
+                                          fontSize: 13,
+                                          color: Color(0xFF444650),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 5. Section Ressources Utiles
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'Ressources Utiles',
+                              style: TextStyle(
+                                fontFamily: 'Public Sans',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, color: outlineVariant),
+                          _buildResourceRow(
+                              Icons.description, 'Règlement Intérieur'),
+                          const Divider(height: 1, color: outlineVariant),
+                          _buildResourceRow(
+                              Icons.calendar_today, 'Calendrier Académique'),
+                          const Divider(height: 1, color: outlineVariant),
+                          _buildResourceRow(
+                              Icons.menu_book, 'Guide de l\'Étudiant'),
+                        ],
                       ),
                     ),
-                    const Divider(height: 1, color: outlineVariant),
-                    _buildResourceRow(Icons.description, 'Règlement Intérieur'),
-                    const Divider(height: 1, color: outlineVariant),
-                    _buildResourceRow(
-                        Icons.calendar_today, 'Calendrier Académique'),
-                    const Divider(height: 1, color: outlineVariant),
-                    _buildResourceRow(Icons.menu_book, 'Guide de l\'Étudiant'),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-
-      // 6. BottomNavBar dynamique et sécurisée
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped, // Déclenche la vérification au clic

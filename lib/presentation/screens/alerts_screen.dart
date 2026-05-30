@@ -2,7 +2,8 @@
 
 import 'package:campuspulse/data/models/mock_data.dart';
 import 'package:campuspulse/presentation/providers/auth_provider.dart';
-import 'package:campuspulse/service/notification_service.dart';
+import 'package:campuspulse/presentation/widgets/connectivity_status_banner.dart';
+import 'package:campuspulse/service/local_storage_service.dart';
 import 'package:campuspulse/service/firebase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,14 +25,73 @@ class AlertsScreen extends ConsumerWidget {
   static const Color secondaryFixed = Color(0xFFD7E2FF);
   static const Color onSecondaryFixedVariant = Color(0xFF004491);
 
+  Future<List<dynamic>> _loadCoursesAndAlerts(String currentUserUid) async {
+    final firebaseService = FirebaseService();
+    try {
+      final coursesSnap = await firebaseService.getCoursesRef().get();
+      final alertsSnap = await firebaseService.getAlertsRef().get();
+
+      final List<Map<String, dynamic>> courses = [];
+      final List<Map<String, dynamic>> alerts = [];
+
+      if (coursesSnap.exists && coursesSnap.value != null) {
+        final Map<dynamic, dynamic> coursesData =
+            coursesSnap.value as Map<dynamic, dynamic>;
+        for (var entry in coursesData.entries) {
+          final raw = Map<String, dynamic>.from(entry.value as Map);
+          final studentUid = raw['studentUid'] ??
+              raw['student'] ??
+              raw['student_uid'] ??
+              raw['studentId'] ??
+              '';
+          if (studentUid == currentUserUid ||
+              (raw['students'] is List &&
+                  (raw['students'] as List).contains(currentUserUid))) {
+            raw['id'] = entry.key;
+            raw['studentUid'] = studentUid;
+            courses.add(raw);
+          }
+        }
+      }
+
+      if (alertsSnap.exists && alertsSnap.value != null) {
+        final Map<dynamic, dynamic> alertsData =
+            alertsSnap.value as Map<dynamic, dynamic>;
+        for (var entry in alertsData.entries) {
+          final raw = Map<String, dynamic>.from(entry.value as Map);
+          final studentUid = raw['studentUid'] ??
+              raw['student'] ??
+              raw['student_uid'] ??
+              'all';
+          if (studentUid == currentUserUid || studentUid == 'all') {
+            raw['id'] = entry.key;
+            raw['studentUid'] = studentUid;
+            alerts.add(raw);
+          }
+        }
+      }
+
+      await LocalStorageService.saveCachedCourses(currentUserUid, courses);
+      await LocalStorageService.saveCachedAlerts(currentUserUid, alerts);
+
+      return [coursesSnap, alertsSnap];
+    } catch (e) {
+      final cachedCourses =
+          LocalStorageService.getCachedCourses(currentUserUid);
+      final cachedAlerts = LocalStorageService.getCachedAlerts(currentUserUid);
+      if (cachedCourses.isNotEmpty || cachedAlerts.isNotEmpty) {
+        return [cachedCourses, cachedAlerts];
+      }
+      rethrow;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final bool isAuthenticated = authState is AuthAuthenticated;
     final String currentUserUid =
         isAuthenticated ? authState.user.uid : 'guest';
-
-    final firebaseService = FirebaseService();
 
     if (!isAuthenticated) {
       return Scaffold(
@@ -150,143 +210,320 @@ class AlertsScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: FutureBuilder<List<dynamic>>(
-          future: Future.wait([
-            firebaseService.getCoursesRef().get(),
-            firebaseService.getAlertsRef().get(),
-          ]),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final coursesSnap = snapshot.data?[0];
-            final alertsSnap = snapshot.data?[1];
-
-            List<CourseModel> userCourses = [];
-            List<CampusAlertModel> userStaticAlerts = [];
-
-            try {
-              if (coursesSnap != null && coursesSnap.value != null) {
-                final Map<dynamic, dynamic> coursesData =
-                    Map<dynamic, dynamic>.from(coursesSnap.value as Map);
-                for (var entry in coursesData.entries) {
-                  final map = Map<String, dynamic>.from(entry.value as Map);
-                  // Normalize into the mock CourseModel shape
-                  String parseTimeString(dynamic v) {
-                    if (v == null) return '00:00';
-                    if (v is String) return v;
-                    if (v is int) {
-                      final dt = DateTime.fromMillisecondsSinceEpoch(v);
-                      final hh = dt.hour.toString().padLeft(2, '0');
-                      final mm = dt.minute.toString().padLeft(2, '0');
-                      return '$hh:$mm';
-                    }
-                    if (v is DateTime) {
-                      final hh = v.hour.toString().padLeft(2, '0');
-                      final mm = v.minute.toString().padLeft(2, '0');
-                      return '$hh:$mm';
-                    }
-                    return v.toString();
+        child: Column(
+          children: [
+            const ConnectivityStatusBanner(),
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: _loadCoursesAndAlerts(currentUserUid),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
                   }
 
-                  final studentUid = map['studentUid'] ??
-                      map['student'] ??
-                      map['student_uid'] ??
-                      map['studentId'] ??
-                      '';
-                  final start = parseTimeString(map['startTime'] ??
-                      map['debutTime'] ??
-                      map['start'] ??
-                      map['debut'] ??
-                      map['start_time']);
-                  final end = parseTimeString(map['endTime'] ??
-                      map['finTime'] ??
-                      map['end'] ??
-                      map['fin'] ??
-                      map['end_time']);
+                  final dynamic coursesSource = snapshot.data?[0];
+                  final dynamic alertsSource = snapshot.data?[1];
 
-                  final course = CourseModel(
-                    studentUid: studentUid,
-                    title: map['title'] ?? map['titre'] ?? map['name'] ?? '',
-                    room: map['room'] ?? map['classe'] ?? map['salle'] ?? '',
-                    teacher: map['teacher'] ??
-                        map['professeur'] ??
-                        map['enseignant'] ??
-                        '',
-                    day: map['day'] ?? map['jour'] ?? '',
-                    startTime: start,
-                    endTime: end,
-                  );
-                  userCourses.add(course);
-                }
-              }
+                  List<CourseModel> userCourses = [];
+                  List<CampusAlertModel> userStaticAlerts = [];
 
-              if (alertsSnap != null && alertsSnap.value != null) {
-                final Map<dynamic, dynamic> alertsData =
-                    Map<dynamic, dynamic>.from(alertsSnap.value as Map);
-                for (var entry in alertsData.entries) {
-                  final map = Map<String, dynamic>.from(entry.value as Map);
-                  final ts = map['timestamp'] ?? map['time'] ?? map['date'];
-                  DateTime parsedTs = DateTime.now();
                   try {
-                    if (ts is int) {
-                      parsedTs = DateTime.fromMillisecondsSinceEpoch(ts);
-                    } else if (ts is String) {
-                      parsedTs = DateTime.parse(ts);
+                    List<Map<String, dynamic>> coursesData = [];
+                    List<Map<String, dynamic>> alertsData = [];
+
+                    if (coursesSource is List) {
+                      coursesData = coursesSource.cast<Map<String, dynamic>>();
+                    } else if (coursesSource != null &&
+                        coursesSource.value != null) {
+                      coursesData = Map<String, dynamic>.from(
+                              coursesSource.value as Map<dynamic, dynamic>)
+                          .entries
+                          .map((entry) {
+                        final item =
+                            Map<String, dynamic>.from(entry.value as Map);
+                        item['id'] = entry.key;
+                        return item;
+                      }).toList();
                     }
-                  } catch (_) {}
 
-                  final alert = CampusAlertModel(
-                    id: entry.key,
-                    studentUid: map['studentUid'] ??
-                        map['student'] ??
-                        map['student_uid'] ??
-                        'all',
-                    title: map['title'] ?? map['tag'] ?? map['titre'] ?? '',
-                    subtitle:
-                        map['subtitle'] ?? map['message'] ?? map['body'] ?? '',
-                    category: (map['category'] ?? map['type'] ?? 'INFO')
-                        .toString()
-                        .toUpperCase(),
-                    timestamp: parsedTs,
+                    if (alertsSource is List) {
+                      alertsData = alertsSource.cast<Map<String, dynamic>>();
+                    } else if (alertsSource != null &&
+                        alertsSource.value != null) {
+                      alertsData = Map<String, dynamic>.from(
+                              alertsSource.value as Map<dynamic, dynamic>)
+                          .entries
+                          .map((entry) {
+                        final item =
+                            Map<String, dynamic>.from(entry.value as Map);
+                        item['id'] = entry.key;
+                        return item;
+                      }).toList();
+                    }
+
+                    String parseTimeString(dynamic v) {
+                      if (v == null) return '00:00';
+                      if (v is String) return v;
+                      if (v is int) {
+                        final dt = DateTime.fromMillisecondsSinceEpoch(v);
+                        final hh = dt.hour.toString().padLeft(2, '0');
+                        final mm = dt.minute.toString().padLeft(2, '0');
+                        return '$hh:$mm';
+                      }
+                      if (v is DateTime) {
+                        final hh = v.hour.toString().padLeft(2, '0');
+                        final mm = v.minute.toString().padLeft(2, '0');
+                        return '$hh:$mm';
+                      }
+                      return v.toString();
+                    }
+
+                    for (var map in coursesData) {
+                      final studentUid = map['studentUid'] ??
+                          map['student'] ??
+                          map['student_uid'] ??
+                          map['studentId'] ??
+                          '';
+                      final start = parseTimeString(map['startTime'] ??
+                          map['debutTime'] ??
+                          map['start'] ??
+                          map['debut'] ??
+                          map['start_time']);
+                      final end = parseTimeString(map['endTime'] ??
+                          map['finTime'] ??
+                          map['end'] ??
+                          map['fin'] ??
+                          map['end_time']);
+
+                      final course = CourseModel(
+                        studentUid: studentUid,
+                        title:
+                            map['title'] ?? map['titre'] ?? map['name'] ?? '',
+                        room:
+                            map['room'] ?? map['classe'] ?? map['salle'] ?? '',
+                        teacher: map['teacher'] ??
+                            map['professeur'] ??
+                            map['enseignant'] ??
+                            '',
+                        day: map['day'] ?? map['jour'] ?? '',
+                        startTime: start,
+                        endTime: end,
+                      );
+                      userCourses.add(course);
+                    }
+
+                    for (var map in alertsData) {
+                      final ts = map['timestamp'] ?? map['time'] ?? map['date'];
+                      DateTime parsedTs = DateTime.now();
+                      try {
+                        if (ts is int) {
+                          parsedTs = DateTime.fromMillisecondsSinceEpoch(ts);
+                        } else if (ts is String) {
+                          parsedTs = DateTime.parse(ts);
+                        }
+                      } catch (_) {}
+
+                      final alert = CampusAlertModel(
+                        id: map['id']?.toString() ?? 'unknown',
+                        studentUid: map['studentUid'] ??
+                            map['student'] ??
+                            map['student_uid'] ??
+                            'all',
+                        title: map['title'] ?? map['tag'] ?? map['titre'] ?? '',
+                        subtitle: map['subtitle'] ??
+                            map['message'] ??
+                            map['body'] ??
+                            '',
+                        category: (map['category'] ?? map['type'] ?? 'INFO')
+                            .toString()
+                            .toUpperCase(),
+                        timestamp: parsedTs,
+                      );
+                      userStaticAlerts.add(alert);
+                    }
+                  } catch (e) {
+                    userCourses = mockSchedule
+                        .where((c) => c.studentUid == currentUserUid)
+                        .toList();
+                    userStaticAlerts = mockAlerts
+                        .where((a) =>
+                            a.studentUid == currentUserUid ||
+                            a.studentUid == 'all')
+                        .toList();
+                  }
+
+                  final currentUserCourses = userCourses
+                      .where((c) => c.studentUid == currentUserUid)
+                      .toList();
+                  final reminderAlerts =
+                      _buildReminderAlerts(currentUserCourses);
+
+                  // Combiner les alertes : rappels et statiques
+                  final allAlerts = [
+                    // Alertes de rappel
+                    ...reminderAlerts,
+                    // Alertes statiques Firebase
+                    ...userStaticAlerts.where((a) =>
+                        a.studentUid == currentUserUid ||
+                        a.studentUid == 'all'),
+                  ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+                  return _alertsBody(
+                    context,
+                    isAuthenticated,
+                    currentUserCourses,
+                    allAlerts,
+                    currentUserUid,
                   );
-                  userStaticAlerts.add(alert);
-                }
-              }
-            } catch (e) {
-              // En cas d'erreur de parsing, on retombera sur les données mock
-              userCourses = mockSchedule
-                  .where((c) => c.studentUid == currentUserUid)
-                  .toList();
-              userStaticAlerts = mockAlerts
-                  .where((a) =>
-                      a.studentUid == currentUserUid || a.studentUid == 'all')
-                  .toList();
-            }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            final currentUserCourses = userCourses
-                .where((c) => c.studentUid == currentUserUid)
-                .toList();
-            final reminderAlerts = _buildReminderAlerts(currentUserCourses);
+  Widget _alertsBody(
+    BuildContext context,
+    bool isAuthenticated,
+    List<CourseModel> currentUserCourses,
+    List<CampusAlertModel> allAlerts,
+    String currentUserUid,
+  ) {
+    final bool hasCourses = currentUserCourses.isNotEmpty;
 
-            // Combiner les alertes : rappels et statiques
-            final allAlerts = [
-              // Alertes de rappel
-              ...reminderAlerts,
-              // Alertes statiques Firebase
-              ...userStaticAlerts.where((a) =>
-                  a.studentUid == currentUserUid || a.studentUid == 'all'),
-            ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-            return _alertsBody(
-              context,
-              isAuthenticated,
-              currentUserCourses,
-              allAlerts,
-              currentUserUid,
-            );
-          },
+    return Scaffold(
+      backgroundColor: AlertsScreen.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Notifications',
+          style: TextStyle(
+            fontFamily: 'Public Sans',
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: AlertsScreen.primaryColor,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: AlertsScreen.primaryColor),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined,
+                color: AlertsScreen.primaryColor),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ConnectivityStatusBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "AUJOURD'HUI",
+                          style: TextStyle(
+                            fontFamily: 'Public Sans',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AlertsScreen.onSurfaceVariant,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          child: const Text(
+                            'Tout marquer comme lu',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AlertsScreen.secondaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (!hasCourses)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: AlertsScreen.outlineVariant),
+                        ),
+                        child: const Text(
+                          'Connectez-vous pour afficher vos alertes personnalisées de cours.',
+                          style: TextStyle(
+                            fontFamily: 'Public Sans',
+                            fontSize: 16,
+                            color: AlertsScreen.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    else ...[
+                      if (allAlerts.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: AlertsScreen.outlineVariant),
+                          ),
+                          child: const Text(
+                            'Aucune notification active pour le moment.',
+                            style: TextStyle(
+                              fontFamily: 'Public Sans',
+                              fontSize: 16,
+                              color: AlertsScreen.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      else
+                        ...allAlerts.map((alert) {
+                          return Column(
+                            children: [
+                              _buildNotificationCard(
+                                indicatorColor:
+                                    _getIndicatorColor(alert.category),
+                                iconWidget: _getIconWidget(alert.category),
+                                tagText: alert.category,
+                                tagColor: _getIndicatorColor(alert.category),
+                                timeText: _formatRelativeTime(alert.timestamp),
+                                bodyText: alert.subtitle,
+                                actionWidget:
+                                    _buildActionWidget(context, alert),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          );
+                        }),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -339,147 +576,114 @@ class AlertsScreen extends ConsumerWidget {
 
   DateTime _nextCourseDateTime(String dayName, String startTime) {
     final now = DateTime.now();
-    final Map<String, int> weekdayMap = {
-      'Lundi': DateTime.monday,
-      'Mardi': DateTime.tuesday,
-      'Mercredi': DateTime.wednesday,
-      'Jeudi': DateTime.thursday,
-      'Vendredi': DateTime.friday,
-      'Samedi': DateTime.saturday,
-      'Dimanche': DateTime.sunday,
-    };
-    final targetWeekday = weekdayMap[dayName] ?? now.weekday;
-    final parts = startTime.split(':');
-    final hour = int.tryParse(parts[0]) ?? 0;
-    final minute = int.tryParse(parts[1]) ?? 0;
+    final weekDays = [
+      'lundi',
+      'mardi',
+      'mercredi',
+      'jeudi',
+      'vendredi',
+      'samedi',
+      'dimanche'
+    ];
+    final targetDay = weekDays.indexOf(dayName.toLowerCase());
+    if (targetDay == -1) return now.add(const Duration(days: 1));
 
-    var candidate = DateTime(now.year, now.month, now.day, hour, minute);
-    final difference = targetWeekday - now.weekday;
-    if (difference > 0) {
-      candidate = candidate.add(Duration(days: difference));
-    } else if (difference < 0) {
-      candidate = candidate.add(Duration(days: difference + 7));
-    } else if (candidate.isBefore(now)) {
-      candidate = candidate.add(const Duration(days: 7));
+    DateTime courseDate = now;
+    while (courseDate.weekday - 1 != targetDay) {
+      courseDate = courseDate.add(const Duration(days: 1));
     }
 
-    return candidate;
+    final timeParts = startTime.split(':');
+    final hour = int.tryParse(timeParts[0]) ?? 0;
+    final minute = int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0;
+
+    return DateTime(
+        courseDate.year, courseDate.month, courseDate.day, hour, minute);
   }
 
   CourseModel? _findNextCourse(List<CourseModel> courses) {
-    if (courses.isEmpty) return null;
-    final sorted = List<CourseModel>.from(courses)
-      ..sort((a, b) {
-        final aDate = _nextCourseDateTime(a.day, a.startTime);
-        final bDate = _nextCourseDateTime(b.day, b.startTime);
-        return aDate.compareTo(bDate);
-      });
-    return sorted.first;
+    final now = DateTime.now();
+    CourseModel? nextCourse;
+    Duration? shortestDuration;
+
+    for (final course in courses) {
+      final courseDateTime = _nextCourseDateTime(course.day, course.startTime);
+      if (courseDateTime.isAfter(now)) {
+        final duration = courseDateTime.difference(now);
+        if (shortestDuration == null || duration < shortestDuration) {
+          nextCourse = course;
+          shortestDuration = duration;
+        }
+      }
+    }
+
+    return nextCourse;
   }
 
   String _formatRelativeTime(DateTime timestamp) {
-    final difference = DateTime.now().difference(timestamp);
-    if (difference.inSeconds < 60) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
       return 'À l\'instant';
-    }
-    if (difference.inMinutes < 60) {
+    } else if (difference.inMinutes < 60) {
       return 'Il y a ${difference.inMinutes} min';
+    } else if (difference.inHours < 24) {
+      return 'Il y a ${difference.inHours}h';
+    } else if (difference.inDays < 7) {
+      return 'Il y a ${difference.inDays}j';
+    } else {
+      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
     }
-    if (difference.inHours < 24) {
-      return 'Il y a ${difference.inHours} h';
-    }
-    return 'Il y a ${difference.inDays} j';
   }
 
   Color _getIndicatorColor(String category) {
-    if (category == 'URGENT' || category == 'ANNULÉ') {
-      return errorColor;
+    switch (category) {
+      case 'ADMINISTRATION':
+        return errorColor;
+      case 'RAPPEL':
+        return secondaryColor;
+      default:
+        return secondaryColor;
     }
-    if (category == 'RAPPEL') {
-      return secondaryColor;
-    }
-    return onSurfaceVariant;
   }
 
   Widget _getIconWidget(String category) {
-    if (category == 'URGENT' || category == 'ANNULÉ') {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: const BoxDecoration(
-          color: errorContainer,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.warning, color: onErrorContainer, size: 24),
-      );
+    IconData icon = Icons.notification_important;
+    switch (category) {
+      case 'ADMINISTRATION':
+        icon = Icons.admin_panel_settings;
+        break;
+      case 'RAPPEL':
+        icon = Icons.alarm;
+        break;
+      default:
+        icon = Icons.notification_important;
     }
-    if (category == 'RAPPEL') {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: const BoxDecoration(
-          color: secondaryFixed,
-          shape: BoxShape.circle,
-        ),
-        child:
-            const Icon(Icons.alarm, color: onSecondaryFixedVariant, size: 24),
-      );
-    }
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: const BoxDecoration(
-        color: Color(0xFFECEEF0),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.info_outline, color: onSurfaceVariant, size: 24),
-    );
+    return Icon(icon, color: Colors.white, size: 24);
   }
 
   Widget? _buildActionWidget(BuildContext context, CampusAlertModel alert) {
-    if (alert.category == 'URGENT' || alert.category == 'ANNULÉ') {
-      return Padding(
-        padding: const EdgeInsets.only(top: 16.0),
-        child: ElevatedButton(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryContainer,
-            foregroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            elevation: 0,
+    if (alert.category == 'RAPPEL') {
+      return ElevatedButton(
+        onPressed: () {
+          // Marquer comme vu ou action de rappel
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: secondaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: const Text(
-            'Voir sur le plan',
-            style: TextStyle(
-              fontFamily: 'Public Sans',
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          elevation: 0,
         ),
-      );
-    }
-    if (alert.category == 'INFO') {
-      return Padding(
-        padding: const EdgeInsets.only(top: 16.0),
-        child: InkWell(
-          onTap: () {},
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'En savoir plus ',
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontWeight: FontWeight.bold,
-                  color: secondaryColor,
-                  fontSize: 14,
-                ),
-              ),
-              Icon(Icons.open_in_new, color: secondaryColor, size: 16),
-            ],
+        child: const Text(
+          'Tester urgent',
+          style: TextStyle(
+            fontFamily: 'Public Sans',
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
           ),
         ),
       );
@@ -487,17 +691,6 @@ class AlertsScreen extends ConsumerWidget {
     return null;
   }
 
-  DateTime _nextReminderTime(CourseModel course) {
-    final courseDateTime = _nextCourseDateTime(course.day, course.startTime);
-    final reminderDateTime =
-        courseDateTime.subtract(const Duration(minutes: 15));
-    if (reminderDateTime.isBefore(DateTime.now())) {
-      return DateTime.now().add(const Duration(seconds: 10));
-    }
-    return reminderDateTime;
-  }
-
-  // Widget constructeur pour centraliser la logique des cartes de notifications de la maquette
   Widget _buildNotificationCard({
     required Color indicatorColor,
     required Widget iconWidget,
@@ -508,335 +701,85 @@ class AlertsScreen extends ConsumerWidget {
     Widget? actionWidget,
   }) {
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.03 * 255).round()),
-            spreadRadius: 0,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Stack(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bandelette de couleur latérale gauche (w-1.5 de ta maquette)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 6,
-              decoration: BoxDecoration(
-                color: indicatorColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-              ),
+          Container(
+            width: 4,
+            height: 120,
+            decoration: BoxDecoration(
+              color: indicatorColor,
+              borderRadius:
+                  const BorderRadius.only(topLeft: Radius.circular(12)),
             ),
           ),
-          // Contenu principal de la notification
-          Padding(
-            padding:
-                const EdgeInsets.only(left: 20, top: 20, right: 20, bottom: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                iconWidget,
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            tagText,
-                            style: TextStyle(
-                              fontFamily: 'Public Sans',
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: tagColor,
-                            ),
-                          ),
-                          Text(
-                            timeText,
-                            style: const TextStyle(
-                              fontFamily: 'Public Sans',
-                              fontSize: 12,
-                              color: onSurfaceVariant,
-                            ),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: indicatorColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: iconWidget,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        bodyText,
-                        style: const TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontSize: 15,
-                          height: 1.4,
-                          color: primaryColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tagText,
+                              style: const TextStyle(
+                                fontFamily: 'Public Sans',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            Text(
+                              timeText,
+                              style: const TextStyle(
+                                fontFamily: 'Public Sans',
+                                fontSize: 11,
+                                color: Color(0xFF999999),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (actionWidget != null) actionWidget,
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Méthode utilitaire pour rendre la vue des alertes (utilisée par le FutureBuilder)
-extension on AlertsScreen {
-  Widget _alertsBody(
-    BuildContext context,
-    bool isAuthenticated,
-    List<CourseModel> currentUserCourses,
-    List<CampusAlertModel> allAlerts,
-    String currentUserUid,
-  ) {
-    final bool hasCourses = currentUserCourses.isNotEmpty;
-    // reuse colors defined in the widget via constants by instantiating the widget
-    return Scaffold(
-      backgroundColor: AlertsScreen.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Notifications',
-          style: TextStyle(
-            fontFamily: 'Public Sans',
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: AlertsScreen.primaryColor,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: AlertsScreen.primaryColor),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined,
-                color: AlertsScreen.primaryColor),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "AUJOURD'HUI",
-                    style: TextStyle(
+                  const SizedBox(height: 12),
+                  Text(
+                    bodyText,
+                    style: const TextStyle(
                       fontFamily: 'Public Sans',
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AlertsScreen.onSurfaceVariant,
-                      letterSpacing: 1.2,
+                      fontSize: 15,
+                      height: 1.4,
+                      color: primaryColor,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
-                      'Tout marquer comme lu',
-                      style: TextStyle(
-                        fontFamily: 'Public Sans',
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AlertsScreen.secondaryColor,
-                      ),
-                    ),
-                  ),
+                  if (actionWidget != null) ...[
+                    const SizedBox(height: 12),
+                    actionWidget,
+                  ],
                 ],
               ),
-              const SizedBox(height: 16),
-              if (!hasCourses) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AlertsScreen.outlineVariant),
-                  ),
-                  child: const Text(
-                    'Aucun cours personnel trouvé pour ce compte.',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 16,
-                      color: AlertsScreen.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ] else ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Vous avez ${currentUserCourses.length} cours programmés. Utilisez les tests de notification ci-dessous.',
-                        style: const TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontSize: 15,
-                          color: AlertsScreen.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        final nextCourse = _findNextCourse(currentUserCourses);
-                        if (nextCourse == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Aucun cours disponible pour tester.'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final messenger = ScaffoldMessenger.of(context);
-                        final scheduledTime = _nextReminderTime(nextCourse);
-                        await NotificationService.scheduleNotification(
-                          id: nextCourse.title.hashCode,
-                          title: 'Rappel de cours',
-                          body:
-                              'Votre cours de ${nextCourse.title} commence dans 15 minutes à ${nextCourse.room}.',
-                          scheduledDateTime: scheduledTime,
-                        );
-
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Notification programmée pour ${nextCourse.title}'),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AlertsScreen.primaryContainer,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Tester rappel',
-                        style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        await NotificationService.showImmediateNotification(
-                          id: currentUserCourses.first.title.hashCode,
-                          title: 'Changement de salle',
-                          body:
-                              'Votre prochain cours a une modification de salle ou d’horaire.',
-                        );
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Notification de test envoyée immédiatement.'),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AlertsScreen.secondaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Tester urgent',
-                        style: TextStyle(
-                          fontFamily: 'Public Sans',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-              if (allAlerts.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AlertsScreen.outlineVariant),
-                  ),
-                  child: const Text(
-                    'Aucune notification active pour le moment.',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 16,
-                      color: AlertsScreen.onSurfaceVariant,
-                    ),
-                  ),
-                )
-              else
-                ...allAlerts.map((alert) {
-                  return Column(
-                    children: [
-                      _buildNotificationCard(
-                        indicatorColor: _getIndicatorColor(alert.category),
-                        iconWidget: _getIconWidget(alert.category),
-                        tagText: alert.category,
-                        tagColor: _getIndicatorColor(alert.category),
-                        timeText: _formatRelativeTime(alert.timestamp),
-                        bodyText: alert.subtitle,
-                        actionWidget: _buildActionWidget(context, alert),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  );
-                }),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

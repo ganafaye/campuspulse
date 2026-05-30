@@ -1,6 +1,7 @@
 // lib/presentation/providers/auth_provider.dart
 
 import 'package:campuspulse/data/models/mock_data.dart';
+import 'package:campuspulse/service/local_storage_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/user_model.dart';
 import '../../service/firebase_service.dart';
@@ -29,8 +30,17 @@ class AuthError extends AuthState {
 
 // Le gestionnaire d'état (Notifier)
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthInitial()) {
-    // Au démarrage, l'étudiant commence en mode non connecté (Accueil Invité)
+  AuthNotifier() : super(AuthLoading()) {
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    final savedUser = LocalStorageService.getPersistedUser();
+    if (savedUser != null) {
+      state = AuthAuthenticated(savedUser);
+      return;
+    }
+
     state = AuthUnauthenticated();
   }
 
@@ -58,6 +68,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (userMap != null) {
         final user = UserModel.fromMap(userMap, id: userMap['uid']);
+        await LocalStorageService.saveUser(user);
+        await FirebaseService().syncStudentData(user.uid);
         state = AuthAuthenticated(user);
         print(
             "DEBUG - Connexion Firebase réussie pour : ${user.name} (${user.ufr})");
@@ -68,6 +80,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final userFound = mockUsers.firstWhere(
         (user) => user.codeEtudiant == cleanedCode,
       );
+      await LocalStorageService.saveUser(userFound);
+      await FirebaseService().syncStudentData(userFound.uid);
       state = AuthAuthenticated(userFound);
       print(
           "DEBUG - Connexion locale réussie pour : ${userFound.name} (${userFound.ufr})");
@@ -80,6 +94,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Déconnexion
   void logout() {
     state = AuthUnauthenticated();
+    LocalStorageService.clearUser();
   }
 }
 

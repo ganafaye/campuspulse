@@ -1,9 +1,11 @@
 // lib/presentation/screens/student_home_screen.dart
 
+import 'package:campuspulse/presentation/widgets/connectivity_status_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- AJOUT DE L'IMPORT RIVERPOD
 import '../providers/auth_provider.dart'; // <-- AJOUT DE L'IMPORT DE TON PROVIDER
 import '../providers/course_reminder_provider.dart'; // <-- Import du provider de rappel
+import '../../service/firebase_service.dart';
 import 'schedule_screen.dart';
 import 'alerts_screen.dart';
 import 'profile_screen.dart';
@@ -19,6 +21,15 @@ class StudentHomeScreen extends ConsumerStatefulWidget {
 // Changement de State à ConsumerState
 class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   int _currentIndex = 0;
+  bool _hasSyncedData = false;
+
+  void _syncStudentDataIfNeeded() {
+    final authState = ref.read(authProvider);
+    if (!_hasSyncedData && authState is AuthAuthenticated) {
+      _hasSyncedData = true;
+      FirebaseService().syncStudentData(authState.user.uid);
+    }
+  }
 
   static const Color primaryColor = Color(0xFF00113A);
   static const Color primaryContainer = Color(0xFF002366);
@@ -57,7 +68,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
   void initState() {
     super.initState();
     // Initialiser le contexte pour les notifications
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(courseReminderProvider.notifier).setAppContext(context);
 
       // Récupérer le user uid et lancer le système de rappel
@@ -78,6 +89,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _syncStudentDataIfNeeded();
+
     // Liste des écrans gérés par l'IndexedStack
     final List<Widget> _interfaces = [
       _buildHomeContent(), // Index 0 : Accueil
@@ -123,9 +136,16 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         ],
       ),
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _interfaces,
+        child: Column(
+          children: [
+            const ConnectivityStatusBanner(),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _interfaces,
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(

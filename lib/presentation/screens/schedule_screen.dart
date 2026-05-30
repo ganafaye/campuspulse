@@ -2,6 +2,8 @@
 
 import 'package:campuspulse/data/models/mock_data.dart';
 import 'package:campuspulse/presentation/providers/auth_provider.dart';
+import 'package:campuspulse/presentation/widgets/connectivity_status_banner.dart';
+import 'package:campuspulse/service/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,10 +44,44 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final bool isAuthenticated = authState is AuthAuthenticated;
-    final List<CourseModel> userSchedule = isAuthenticated
-        ? mockSchedule
+    final List<CourseModel> cachedSchedule = isAuthenticated
+        ? LocalStorageService.getCachedCourses(authState.user.uid)
+            .map((courseMap) => CourseModel(
+                  studentUid: courseMap['studentUid']?.toString() ?? '',
+                  title: courseMap['title']?.toString() ??
+                      courseMap['titre']?.toString() ??
+                      courseMap['name']?.toString() ??
+                      '',
+                  room: courseMap['room']?.toString() ??
+                      courseMap['classe']?.toString() ??
+                      courseMap['salle']?.toString() ??
+                      '',
+                  teacher: courseMap['teacher']?.toString() ??
+                      courseMap['professeur']?.toString() ??
+                      courseMap['enseignant']?.toString() ??
+                      '',
+                  day: courseMap['day']?.toString() ??
+                      courseMap['jour']?.toString() ??
+                      '',
+                  startTime: courseMap['startTime']?.toString() ??
+                      courseMap['debutTime']?.toString() ??
+                      courseMap['start']?.toString() ??
+                      '',
+                  endTime: courseMap['endTime']?.toString() ??
+                      courseMap['finTime']?.toString() ??
+                      courseMap['end']?.toString() ??
+                      '',
+                ))
             .where((course) => course.studentUid == authState.user.uid)
             .toList()
+        : <CourseModel>[];
+
+    final List<CourseModel> userSchedule = isAuthenticated
+        ? (cachedSchedule.isNotEmpty
+            ? cachedSchedule
+            : mockSchedule
+                .where((course) => course.studentUid == authState.user.uid)
+                .toList())
         : <CourseModel>[];
     final List<CourseModel> coursesForDay = userSchedule
         .where((course) => course.day == _selectedDay)
@@ -110,27 +146,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 2. Offline Banner
-            Container(
-              width: double.infinity,
-              color: offlineBannerBg,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.cloud_off, color: offlineBannerText, size: 14),
-                  SizedBox(width: 8),
-                  Text(
-                    'Mode hors ligne',
-                    style: TextStyle(
-                      fontFamily: 'Public Sans',
-                      fontSize: 12,
-                      color: offlineBannerText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const ConnectivityStatusBanner(),
 
             // 3. Main Scrollable Canvas
             Expanded(

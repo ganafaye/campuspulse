@@ -17,6 +17,7 @@ dependencies:
 
   # 2. Réseau & API
   dio: ^5.4.1
+  connectivity_plus: ^4.0.1
 
   # 3. Base de données locale (Cache Hors-ligne)
   hive: ^2.2.3

@@ -1,5 +1,6 @@
 // lib/service/firebase_service.dart
 
+import 'package:campuspulse/service/local_storage_service.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class FirebaseService {
@@ -41,6 +42,56 @@ class FirebaseService {
     }
   }
 
+  /// Synchronise les cours et alertes de l'utilisateur vers le stockage local.
+  Future<void> syncStudentData(String studentUid) async {
+    try {
+      final coursesSnapshot = await getCoursesRef().get();
+      final alertsSnapshot = await getAlertsRef().get();
+
+      final List<Map<String, dynamic>> courses = [];
+      final List<Map<String, dynamic>> alerts = [];
+
+      if (coursesSnapshot.exists && coursesSnapshot.value != null) {
+        final Map<dynamic, dynamic> coursesData =
+            coursesSnapshot.value as Map<dynamic, dynamic>;
+        for (var entry in coursesData.entries) {
+          final courseMap = Map<String, dynamic>.from(entry.value as Map);
+          courseMap['id'] = entry.key;
+          courseMap['studentUid'] = courseMap['studentUid'] ??
+              courseMap['student'] ??
+              courseMap['student_uid'] ??
+              courseMap['studentId'] ??
+              '';
+
+          if (courseMap['studentUid'] == studentUid ||
+              (courseMap['students'] is List &&
+                  (courseMap['students'] as List).contains(studentUid))) {
+            courses.add(courseMap);
+          }
+        }
+      }
+
+      if (alertsSnapshot.exists && alertsSnapshot.value != null) {
+        final Map<dynamic, dynamic> alertsData =
+            alertsSnapshot.value as Map<dynamic, dynamic>;
+        for (var entry in alertsData.entries) {
+          final alertMap = Map<String, dynamic>.from(entry.value as Map);
+          alertMap['id'] = entry.key;
+          alertMap['studentUid'] = alertMap['studentUid'] ??
+              alertMap['student'] ??
+              alertMap['student_uid'] ??
+              'all';
+          alerts.add(alertMap);
+        }
+      }
+
+      await LocalStorageService.saveCachedCourses(studentUid, courses);
+      await LocalStorageService.saveCachedAlerts(studentUid, alerts);
+    } catch (e) {
+      print('❌ Erreur de synchronisation locale Firebase: $e');
+    }
+  }
+
   /// 2. RÉCUPÉRATION DES COURS (TEMPS RÉEL OU FLUX)
   /// Permet d'écouter le nœud /courses
   DatabaseReference getCoursesRef() {
@@ -56,7 +107,7 @@ class FirebaseService {
   /// 4. ÉCOUTER LES CHANGEMENTS DE COURS EN TEMPS RÉEL
   /// Retourne un stream des changements pour un utilisateur spécifique
   Stream<List<Map<String, dynamic>>> watchUserCourses(String studentUid) {
-    return getCoursesRef().onValue.map((event) {
+    return getCoursesRef().onValue.asyncMap((event) async {
       final List<Map<String, dynamic>> courses = [];
       if (event.snapshot.exists && event.snapshot.value != null) {
         final Map<dynamic, dynamic> coursesData =
@@ -75,6 +126,7 @@ class FirebaseService {
           }
         }
       }
+      await LocalStorageService.saveCachedCourses(studentUid, courses);
       return courses;
     });
   }
@@ -82,7 +134,7 @@ class FirebaseService {
   /// 5. ÉCOUTER LES ALERTES EN TEMPS RÉEL
   /// Retourne un stream des alertes pour un utilisateur spécifique
   Stream<List<Map<String, dynamic>>> watchUserAlerts(String studentUid) {
-    return getAlertsRef().onValue.map((event) {
+    return getAlertsRef().onValue.asyncMap((event) async {
       final List<Map<String, dynamic>> alerts = [];
       if (event.snapshot.exists && event.snapshot.value != null) {
         final Map<dynamic, dynamic> alertsData =
@@ -100,6 +152,7 @@ class FirebaseService {
           }
         }
       }
+      await LocalStorageService.saveCachedAlerts(studentUid, alerts);
       return alerts;
     });
   }
