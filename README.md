@@ -72,9 +72,17 @@ flutter run
 
 * **27/05/2026 [Gana]** - Écran de Profil Éudiant (ProfileScreen) : Intégration de l'interface affichant les informations personnelles et le statut médical de l'étudiant connecté.
 * **27/05/2026 [Gana]** - Ajout de l'écran de sélection de profil (simulateur d'étudiants UADB).
-**27/05/2026 [Gana]** - Filtrage dynamique de l'emploi du temps selon l'UID de l'utilisateur connecté.
-**27/05/2026 [Gana]** - Refactoring de l'écran d'alertes pour accepter des données de notifications dynamiques.
-**27/05/2026 [Gana]** - Configuration initiale et structure du NotificationService (flutter_local_notifications).
+* **27/05/2026 [Gana]** - Filtrage dynamique de l'emploi du temps selon l'UID de l'utilisateur connecté.
+* **27/05/2026 [Gana]** - Refactoring de l'écran d'alertes pour accepter des données de notifications dynamiques.
+* **27/05/2026 [Gana]** - Configuration initiale et structure du NotificationService (flutter_local_notifications).
+* **28/05/2026 [Gana]** - Pause
+* **-------------------------------------------------------------------------------------------------------------------**
+* **28/05/2026 [Gana]** - Pause
+* * **-------------------------------------------------------------------------------------------------------------------**
+* **29/05/2026 [Gana]** Configuration et connexion a Firebase
+* **29/05/2026 [Gana]** mise en place du service offline et auto login
+* **30/05/2026 [Gana]** Rectifications du design et gestions des alertes 
+
 
 *(👉 Prochaine modification à ajouter ici par un membre du groupe)*
 
