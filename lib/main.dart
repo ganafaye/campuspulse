@@ -10,8 +10,10 @@ import 'package:campuspulse/presentation/providers/auth_provider.dart';
 import 'package:campuspulse/service/local_storage_service.dart';
 import 'package:campuspulse/service/notification_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:device_preview/device_preview.dart';
 
 // Importations de tes écrans principaux
 import 'presentation/screens/guest_home_screen.dart';
@@ -39,9 +41,15 @@ Future<void> main() async {
   // 4. Initialisation du service de notifications local
   await NotificationService.init();
 
+  // Activer DevicePreview seulement en web/debug (pas sur mobile ou prod)
+  final bool enableDevicePreview = kIsWeb && kDebugMode;
+
   runApp(
-    const ProviderScope(
-      child: CampusPulseApp(),
+    DevicePreview(
+      enabled: enableDevicePreview,
+      builder: (context) => const ProviderScope(
+        child: CampusPulseApp(),
+      ),
     ),
   );
 }
@@ -61,9 +69,14 @@ class CampusPulseApp extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     print("DEBUG - État actuel dans main.dart : ${authState.runtimeType}");
 
+    final bool enableDevicePreview = kIsWeb && kDebugMode;
+
     return MaterialApp(
       title: 'CampusPulse UADB',
       debugShowCheckedModeBanner: false,
+      useInheritedMediaQuery: enableDevicePreview,
+      locale: enableDevicePreview ? DevicePreview.locale(context) : null,
+      builder: enableDevicePreview ? DevicePreview.appBuilder : null,
 
       // Configuration du Thème Global conservée à l'identique de ton Figma
       theme: ThemeData(
